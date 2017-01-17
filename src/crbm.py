@@ -19,6 +19,19 @@ class crbm(object):
 
         print self.weight_groups.shape
 
+    def getStateObject(self):
+    	return {'hidden_layer_shape':self.hidden_layer_shape, 'visible_layer_shape':self.visible_layer_shape, \
+    			'numBases':self.numBases, 'visible_bias':self.visible_bias, 'hidden_group_biases':self.hidden_group_biases, \
+    			'weight_groups':self.weight_groups}
+
+    def loadStateObject(self, stateObject):
+    	self.hidden_layer_shape = stateObject['hidden_layer_shape']
+    	self.visible_layer_shape = stateObject['visible_layer_shape']
+    	self.numBases = stateObject['numBases']
+    	self.visible_bias = stateObject['visible_bias']
+    	self.hidden_group_biases = stateObject['hidden_group_biases']
+    	self.weight_groups = stateObject['weight_groups']
+
 
     def contrastive_divergence(self, trainingSample):
     	h0_pre_sample, h0_sample = self.sample_h_given_v(trainingSample)
