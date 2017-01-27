@@ -14,6 +14,6 @@ def testRbm(myCrbm):
 	    imgMat = np.reshape(train_set[0][index], (28,28))
 	    imgMat = imgMat - np.mean(imgMat)
 	    imgMat = imgMat/np.std(imgMat)
-	    myCrbm.contrastive_divergence(imgMat)
+	    myCrbm.contrastive_divergence([[imgMat]])
 
 
