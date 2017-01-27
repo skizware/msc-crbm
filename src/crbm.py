@@ -1,7 +1,7 @@
 import numpy as np
 import theano as th
 from theano import tensor as T
-from scipy.signal import convolve2d
+
 from theano.tensor.shared_randomstreams import RandomStreams
 
 LEARNING_RATE = 0.002
@@ -90,7 +90,13 @@ class crbm(object):
         self.th_visible_layer_shape = th.shared(self.visible_layer_shape, 'th_visible_layer_shape')
         self.th_hidden_layer_shape = th.shared(self.hidden_layer_shape, 'th_hidden_layer_shape')
 
-    def __th_h_given_v(self, v):
+        self.__th_h_given_v = self.__init__th_h_given_v()
+        self.__th_v_given_h = self.__init__th_v_given_h()
+        self.__th_update_weights = self.__init__th_update_weights()
+        self.__th_update_hidden_biases = self.__init__th_update_hidden_biases()
+        self.__th_update_visible_bias = self.__init__th_update_visible_bias()
+
+    def __init__th_h_given_v(self):
         th_h_given_v_input = T.tensor4("th_h_given_v_input", dtype=th.config.floatX)
         th_h_given_v_output_pre_sigmoid = T.nnet.conv2d(th_h_given_v_input, self.th_weight_groups, border_mode='valid',
                                                         filter_flip=False) + \
@@ -107,9 +113,9 @@ class crbm(object):
             # givens=[self.th_weight_groups,self.th_hidden_group_biases]
         )
 
-        return op(v)
+        return op
 
-    def __th_v_given_h(self, h):
+    def __init__th_v_given_h(self):
         th_v_given_h_input = T.tensor4('th_v_given_h_input', dtype=th.config.floatX)
 
         th_v_given_h_output_pre_sample = T.nnet.conv2d(th_v_given_h_input, self.th_weight_groups.swapaxes(0, 1),
@@ -122,9 +128,9 @@ class crbm(object):
             outputs=[th_v_given_h_output_pre_sample, th_v_given_h_output_sampled]
         )
 
-        return op(h)
+        return op
 
-    def __th_update_weights(self, inputSample, h0_pre_sample, v1_sampled, h1_pre_sample, learning_rate):
+    def __init__th_update_weights(self):
         th_input_sample = T.tensor4('th_inputSample', dtype=th.config.floatX)
         th_h0_pre_sample = T.tensor4('th_h0_pre_sample', dtype=th.config.floatX)
         th_v1_sampled = T.tensor4('th_v1_sampled', dtype=th.config.floatX)
@@ -141,9 +147,9 @@ class crbm(object):
             updates=[(self.th_weight_groups, self.th_weight_groups + th_weight_update.swapaxes(0,1))]
         )
 
-        return op(inputSample, h0_pre_sample, v1_sampled, h1_pre_sample, learning_rate)
+        return op
 
-    def __th_update_hidden_biases(self, h0_pre_sample, h1_pre_sample, learning_rate):
+    def __init__th_update_hidden_biases(self):
         th_h0_pre_sample = T.tensor4('th_h0_pre_sample', dtype=th.config.floatX)
         th_h1_pre_sample = T.tensor4('th_h1_pre_sample', dtype=th.config.floatX)
         th_learning_rate = T.scalar('th_learning_rate', dtype=th.config.floatX)
@@ -158,9 +164,9 @@ class crbm(object):
             updates=[(self.th_hidden_group_biases, self.th_hidden_group_biases + th_bias_updates[0])]
         )
 
-        return op(h0_pre_sample, h1_pre_sample, learning_rate)
+        return op
 
-    def __th_update_visible_bias(self, v0, v1, learning_rate):
+    def __init__th_update_visible_bias(self):
         th_v0 = T.tensor4('th_v0', dtype=th.config.floatX)
         th_v1 = T.tensor4('th_v1', dtype=th.config.floatX)
         th_learning_rate = T.scalar('th_learning_rate', dtype=th.config.floatX)
@@ -175,4 +181,4 @@ class crbm(object):
             updates=[(self.th_visible_bias, self.th_visible_bias + th_bias_update)]
         )
 
-        return op(v0, v1, learning_rate)
+        return op
