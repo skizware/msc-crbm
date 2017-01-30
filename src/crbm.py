@@ -14,7 +14,7 @@ class crbm(object):
         self.visible_layer_shape = visible_layer_shape
         self.hidden_layer_shape = hidden_layer_shape
         self.numBases = numBases
-        self.visible_bias = np.array([0.])
+        self.visible_bias = 0.
         self.hidden_group_biases = np.zeros(numBases, dtype=float)
 
         a = 1. / 10000
@@ -119,7 +119,7 @@ class crbm(object):
         th_v_given_h_input = T.tensor4('th_v_given_h_input', dtype=th.config.floatX)
 
         th_v_given_h_output_pre_sample = T.nnet.conv2d(th_v_given_h_input, self.th_weight_groups.swapaxes(0, 1),
-                                                       border_mode='full') + self.th_visible_bias.dimshuffle('x', 0, 'x', 'x')
+                                                       border_mode='full') + self.th_visible_bias
         th_v_given_h_output_sampled = self.theano_rng.normal(avg=th_v_given_h_output_pre_sample,
                                                              size=self.visible_layer_shape)
 
