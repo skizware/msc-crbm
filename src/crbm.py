@@ -5,7 +5,8 @@ from theano import tensor as T
 from theano.tensor.shared_randomstreams import RandomStreams
 
 class crbm(object):
-    def __init__(self, numBases=3, visible_layer_shape=(1, 1, 18, 18), hidden_layer_shape=(1, 1, 16, 16)):
+    def __init__(self, numBases=3, visible_layer_shape=(1, 1, 18, 18), hidden_layer_shape=(1, 1, 16, 16), sparsity_regularizarion_rate=0.003,
+                 target_sparsity=0.003, learning_rate=0.001):
         self.rng = np.random.RandomState(1234)
         self.theano_rng = RandomStreams(self.rng.randint(2 ** 30))
         self.visible_layer_shape = visible_layer_shape
@@ -13,9 +14,9 @@ class crbm(object):
         self.numBases = numBases
         self.visible_bias = 0.
         self.hidden_group_biases = np.zeros(numBases, dtype=float)
-        self.REGULARIZATION_RATE = 1.000
-        self.TARGET_SPARSITY = 0.003
-        self.LEARNING_RATE = 0.001
+        self.REGULARIZATION_RATE = sparsity_regularizarion_rate
+        self.TARGET_SPARSITY = target_sparsity
+        self.LEARNING_RATE = learning_rate
 
         a = 1. / 10000
         self.weight_groups = np.array(self.rng.uniform(  # initialize W uniformly
