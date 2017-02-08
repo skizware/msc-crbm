@@ -4,10 +4,12 @@ from theano import tensor as T
 
 from theano.tensor.shared_randomstreams import RandomStreams
 
+
 class crbm(object):
-    def __init__(self, numBases=3, visible_layer_shape=(1, 1, 18, 18), hidden_layer_shape=(1, 1, 16, 16), sparsity_regularizarion_rate=0.003,
+    def __init__(self, numBases=3, visible_layer_shape=(1, 1, 18, 18), hidden_layer_shape=(1, 1, 16, 16),
+                 sparsity_regularizarion_rate=0.003,
                  target_sparsity=0.003, learning_rate=0.001):
-        self.rng = np.random.RandomState(1234)
+        self.rng = np.random.RandomState()
         self.theano_rng = RandomStreams(self.rng.randint(2 ** 30))
         self.visible_layer_shape = visible_layer_shape
         self.hidden_layer_shape = hidden_layer_shape
@@ -18,7 +20,7 @@ class crbm(object):
         self.TARGET_SPARSITY = target_sparsity
         self.LEARNING_RATE = learning_rate
 
-        a = 1. / 10000
+        a = 1. / 100
         self.weight_groups = np.array(self.rng.uniform(  # initialize W uniformly
             low=-a,
             high=a,
@@ -47,8 +49,9 @@ class crbm(object):
         v1_pre_sample, v1_sample, \
         h1_pre_sample, h1_sample = self.gibbs_hvh(h0_sample)
 
-        weight_group_delta = self.__th_update_weights(self.th_hidden_layer_shape.get_value()[2] * self.th_hidden_layer_shape.get_value()[3],
-                                 trainingSample, h0_pre_sample, v1_sample, h1_pre_sample)
+        weight_group_delta = self.__th_update_weights(
+            self.th_hidden_layer_shape.get_value()[2] * self.th_hidden_layer_shape.get_value()[3],
+            trainingSample, h0_pre_sample, v1_sample, h1_pre_sample)
 
         hidden_bias_delta, sparsity_delta, bias_updates = self.__th_update_hidden_biases(h0_pre_sample, h1_pre_sample)
 
@@ -81,7 +84,7 @@ class crbm(object):
                (self.visible_layer_shape[2] - self.hidden_layer_shape[2] + 1,
                 self.visible_layer_shape[3] - self.hidden_layer_shape[3] + 1)
 
-    def __sigmoid(self, x):
+    def _sigmoid(self, x):
         return 1. / (1 + np.exp(-x))
 
     # =========================Theano Specifics=====================#
@@ -106,7 +109,7 @@ class crbm(object):
         th_h_given_v_output_pre_sigmoid = T.nnet.conv2d(th_h_given_v_input, self.th_weight_groups, border_mode='valid',
                                                         filter_flip=False) + \
                                           self.th_hidden_group_biases.dimshuffle('x', 0, 'x', 'x')
-        th_h_given_v_output_sigmoid = self.__sigmoid(th_h_given_v_output_pre_sigmoid)
+        th_h_given_v_output_sigmoid = self._sigmoid(th_h_given_v_output_pre_sigmoid)
         th_h_given_v_output_sampled = self.theano_rng.binomial(size=th_h_given_v_output_sigmoid.shape,
                                                                # discrete: binomial
                                                                n=1,
@@ -173,11 +176,11 @@ class crbm(object):
         th_diff = th_h0_pre_sample - th_h1_pre_sample
 
         th_hidden_bias_delta = self.th_learning_rate * (1. / self.th_hidden_layer_shape.get_value()[2] ** 2) * (
-        th_diff.sum(axis=(2, 3)))
+            th_diff.sum(axis=(2, 3)))
 
         th_sparsity_delta = self.th_regularization_rate * (
-        self.th_target_sparsity - (1. / self.th_hidden_layer_shape.get_value()[2] ** 2) * th_h0_pre_sample.sum(
-            (0, 2, 3)))
+            self.th_target_sparsity - (1. / self.th_hidden_layer_shape.get_value()[2] ** 2) * th_h0_pre_sample.sum(
+                (0, 2, 3)))
 
         th_bias_updates = th_hidden_bias_delta + th_sparsity_delta
 
@@ -204,3 +207,11 @@ class crbm(object):
         )
 
         return op
+
+
+class BinaryCrbm(crbm):
+    def sample_v_given_h(self, hidden_groups):
+        output_pre_sample, _ = super(BinaryCrbm, self).sample_v_given_h(hidden_groups)
+        output_sigmoid = self._sigmoid(output_pre_sample)
+        output_sample = self.rng.binomial(n=1, p=output_sigmoid, size=output_sigmoid.shape)
+        return [output_sigmoid, output_sample]
