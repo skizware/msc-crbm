@@ -57,10 +57,6 @@ class crbm(object):
 
         visible_bias_delta = self.__th_update_visible_bias(trainingSample, v1_sample)
 
-        # self.hidden_group_biases[group] += (0.003 - (1./self.hidden_layer_shape[0]**2)*(np.nansum(h0_pre_sample[group])))
-
-        print "nansum trainingsample = " + str(np.nansum(trainingSample))
-        print "nansum v1_sample = " + str(np.nansum(v1_sample))
         return [weight_group_delta, hidden_bias_delta, sparsity_delta, bias_updates, visible_bias_delta]
 
     def sample_h_given_v(self, inputMat):

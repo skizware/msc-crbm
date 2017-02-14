@@ -1,10 +1,11 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import crbm
 
 
 class RbmTrainer(object):
     def __init__(self, crbm, train_set, valid_set, stats_collection_period=500, num_training_epochs=1,
-                 output_directory=''):
+                 output_directory='', image_loader=None):
         self.targetRbm = crbm
         self.learning_rate = crbm.LEARNING_RATE
         self.target_sparsity = crbm.TARGET_SPARSITY
@@ -14,61 +15,48 @@ class RbmTrainer(object):
         self.stats_collection_period = stats_collection_period
         self.num_epochs = num_training_epochs
         self.output_dir = output_directory
+        self.image_loader = image_loader
 
     def train_rbm_unsupervised(self):
         recreation_err_sqrd = []
-        weight_updates = []
-        hidden_bias_updates = []
-        sparsity_updates = []
-        visible_bias_updates = []
 
         for i in range(0, self.num_epochs):
             current_epoch = i + 1
-            for test_index in range(0, self.training_set.shape[0]):
-                #test_sample = self.__normalize_image(self.training_set[test_index].copy())
-                test_sample = self.training_set[test_index].copy()
-
-                weight_group_delta, hidden_bias_delta, \
-                sparsity_delta, bias_updates, visible_bias_delta = self.targetRbm.contrastive_divergence(test_sample)
+            test_index = 0
+            for image_ref in self.training_set:
+                hidden_bias_delta, sparsity_delta, \
+                visible_bias_delta, weight_group_delta = self.train_given_sample(image_ref)
 
                 if test_index % self.stats_collection_period == 0:
-                    self.__collect_statistics(hidden_bias_delta, hidden_bias_updates, test_index,
-                                              recreation_err_sqrd,
-                                              sparsity_delta, sparsity_updates, visible_bias_delta,
-                                              visible_bias_updates, weight_group_delta, weight_updates, current_epoch)
+                    test_idx = np.random.randint(1, len(self.validation_set) - 1)
+                    test_sample = self.validation_set[test_idx].copy()
+                    if type(self.targetRbm) == crbm.crbm:
+                        test_sample = self.normalize_image(test_sample)
 
-    def __collect_statistics(self, hidden_bias_delta, hidden_bias_updates, index, recreation_err_sqrd,
-                             sparsity_delta, sparsity_updates, visible_bias_delta, visible_bias_updates,
-                             weight_group_delta, weight_updates, current_epoch):
-        self.__add_param_update_metrics_to_collectors(hidden_bias_delta, hidden_bias_updates, sparsity_delta,
-                                                      sparsity_updates,
-                                                      visible_bias_delta, visible_bias_updates, weight_group_delta,
-                                                      weight_updates)
+                    recreation = self.targetRbm.gibbs_vhv(test_sample)
+                    self.collect_statistics(hidden_bias_delta, test_index, recreation_err_sqrd, sparsity_delta,
+                                            weight_group_delta, current_epoch, test_sample, recreation)
 
-        test_idx = np.random.randint(1, len(self.validation_set) - 1)
-        #test_sample = self.__normalize_image(self.validation_set[test_idx].copy())
-        test_sample = self.validation_set[test_idx].copy()
+                test_index += 1
 
-        recreation, test_sample = self.__get_recreation(test_sample)
+    def train_given_sample(self, image_ref):
+        if self.image_loader is not None:
+            test_sample = self.image_loader.load_image(image_ref).copy()
+        else:
+            test_sample = image_ref.copy()
+        weight_group_delta, hidden_bias_delta, \
+        sparsity_delta, bias_updates, visible_bias_delta = self.targetRbm.contrastive_divergence(test_sample)
+        return hidden_bias_delta, sparsity_delta, visible_bias_delta, weight_group_delta
+
+    def collect_statistics(self, hidden_bias_delta, index, recreation_err_sqrd, sparsity_delta, weight_group_delta,
+                           current_epoch, test_sample, recreation):
+
+        print("Collecting stats for sample {}".format(index))
         self.__plot_and_save_sample_recreation_comparison(index, recreation, test_sample, current_epoch)
         self.__plot_and_save_recreation_squared_error(recreation, recreation_err_sqrd, test_sample)
         self.__plot_and_save_weight_histograms(index, weight_group_delta, current_epoch)
         self.__plot_and_save_hidden_bias_histograms(hidden_bias_delta, index, sparsity_delta, current_epoch)
         self.__plot_and_save_learned_filters(index, current_epoch)
-
-    def __get_recreation(self, testSample):
-        testSample = testSample - testSample.mean()
-        testSample = testSample / testSample.std()
-        recreation = self.targetRbm.gibbs_vhv(testSample)
-        return recreation, testSample
-
-    def __add_param_update_metrics_to_collectors(self, hidden_bias_delta, hidden_bias_updates, sparsity_delta,
-                                                 sparsity_updates, visible_bias_delta, visible_bias_updates,
-                                                 weight_group_delta, weight_updates):
-        weight_updates.append(weight_group_delta.reshape(weight_group_delta.size))
-        hidden_bias_updates.append(hidden_bias_delta[0])
-        sparsity_updates.append(sparsity_delta)
-        visible_bias_updates.append(visible_bias_delta)
 
     def __plot_and_save_sample_recreation_comparison(self, index, recreation, test_sample, current_epoch):
         fig = plt.figure()
@@ -132,10 +120,14 @@ class RbmTrainer(object):
         fig, _ = plt.subplots()
         fig_learned_filters = fig.add_subplot(1, 1, 1)
         fig_learned_filters.set_title("Learned Filters")
-        best_shape_arr = self.__get_squarest_shape_arr(self.targetRbm.th_weight_groups.get_value().size)
+        closest_factors_numBases = self.__get_biggest_factors_of(self.targetRbm.numBases)
         fig.tight_layout()
-        plt.imshow(self.__unblockshaped(self.targetRbm.th_weight_groups.get_value()[:, 0, :, :], best_shape_arr[1],
-                                        best_shape_arr[0]), cmap='gray')
+
+        width = closest_factors_numBases[0] * self.targetRbm.th_weight_groups.get_value().shape[2]
+        height = closest_factors_numBases[1] * self.targetRbm.th_weight_groups.get_value().shape[3]
+
+        plt.imshow(self.__unblockshaped(np.average(self.targetRbm.th_weight_groups.get_value(), axis=1), width, height),
+                   cmap='gray')
         fig.savefig(self.__get_subdir_name() + '/recreations/filters_' + str(current_epoch) + '_' + str(index) + '.png')
         plt.close(fig)
 
@@ -156,12 +148,12 @@ class RbmTrainer(object):
                 .swapaxes(1, 2)
                 .reshape(h, w))
 
-    def __normalize_image(self, input_image):
+    def normalize_image(self, input_image):
         input_image = input_image - input_image.mean()
         input_image = input_image / input_image.std()
         return input_image
 
-    def __get_squarest_shape_arr(self, size):
+    def __get_biggest_factors_of(self, size):
         factors = list(reduce(list.__add__,
                               ([i, size // i] for i in range(1, int(size ** 0.5) + 1) if size % i == 0)))
         return factors[len(factors) - 2:]
