@@ -9,12 +9,12 @@ import cdbn
 from dbn_trainer import DbnTrainer
 
 learning_rates = [0.007]
-target_sparsities = [0.08]
-sparsity_constants = [0.95]
+target_sparsities = [0.05]
+sparsity_constants = [0.9]
 
 number_of_bases = 40
 visible_layer_shape = (1, 1, 28, 28)
-hidden_layer_shape = (1, 1, 24, 24)
+hidden_layer_shape = (1, 1, 19, 19)
 
 print("Loading Training Set - START")
 f = gzip.open("/home/dave/Downloads/mnist.pkl.gz", "rb")
@@ -38,22 +38,26 @@ def run_experiment():
                 print("Running Experiment For Vals {} {} {} - START".format(lr, ts, sc))
                 if not os.path.isdir(get_subdir_name(lr, sc, ts)):
                     layer1 = crbm.BinaryCrbm(number_of_bases, visible_layer_shape, hidden_layer_shape, sc, ts, lr)
-                    layer2 = crbm.BinaryCrbm(100, (1, 40, 24, 24), (1, 1, 15, 15), sc, 0.05, lr)
+                    stateObj = np.load('/home/dave/dev/MSc/crbm/test/mnist_single_layer/10x10/0.007_0.08_0.9/learned_state.npy')
+                    layer1.loadStateObject(stateObj.item())
+
+                    layer2 = crbm.BinaryCrbm(100, (1, 40, 19, 19), (1, 1, 10, 10), sc, 0.03, lr)
                     layers = [layer1, layer2]
                     myDbn = cdbn.Dbn(layers)
-                    trainer = DbnTrainer(myDbn, train_set, valid_set, output_directory='mnist_dbn_2layer/5x5x40_10x10x100/')
+                    trainer = DbnTrainer(myDbn, train_set, valid_set, output_directory='mnist_dbn_2layer/10x10x40_10x10x100/')
 
-                    os.makedirs(get_subdir_name(lr, sc, ts, 0) + '/recreations')
-                    os.makedirs(get_subdir_name(lr, sc, ts, 0) + '/histograms')
-                    os.makedirs(get_subdir_name(lr, sc, 0.05, 1) + '/recreations')
-                    os.makedirs(get_subdir_name(lr, sc, 0.05, 1) + '/histograms')
+                    #os.makedirs(get_subdir_name(lr, sc, ts, 0) + '/recreations')
+                    #os.makedirs(get_subdir_name(lr, sc, ts, 0) + '/histograms')
+                    os.makedirs(get_subdir_name(lr, sc, 0.03, 1) + '/recreations')
+                    os.makedirs(get_subdir_name(lr, sc, 0.03, 1) + '/histograms')
 
-                    trainer.train_dbn_unsupervised()
+                    trainer.train_dbn_unsupervised(starting_layer=1)
+                    np.save(get_subdir_name(lr, sc, 0.03, 1) + '/../learned_state.npy', myDbn.getStateObject())
                 print("Running Experiment For Vals {} {} {} - END".format(lr, ts, sc))
 
 
 def get_subdir_name(lr, sc, ts, layerNum=1):
-    return 'mnist_dbn_2layer/5x5x40_10x10x100/layer_{}/'.format(layerNum) + str(lr) + '_' + str(ts) + '_' + str(sc)
+    return 'mnist_dbn_2layer/10x10x40_10x10x100/layer_{}/'.format(layerNum) + str(lr) + '_' + str(ts) + '_' + str(sc)
 
 
 run_experiment()

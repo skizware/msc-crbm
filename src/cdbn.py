@@ -1,4 +1,4 @@
-
+import crbm
 
 class Dbn(object):
 
@@ -37,3 +37,22 @@ class Dbn(object):
 
         return self.layers[layer_number].contrastive_divergence(input_sample)
 
+    def getStateObject(self):
+        layer_count = 0
+        state_object = {}
+        for layer in self.layers:
+            state_object[layer_count] = layer.getStateObject()
+            layer_count += 1
+        return state_object
+
+    def loadStateObject(self, stateObject):
+        layers = []
+        for layerNum in stateObject.keys():
+            if stateObject[layerNum]['type'] == crbm.crbm:
+                layer = crbm.crbm()
+            else:
+                layer = crbm.BinaryCrbm()
+            layer.loadStateObject(stateObject[layerNum])
+            layers.append(layer)
+
+        self.layers = layers

@@ -8,12 +8,12 @@ import crbm
 from rbm_trainer import RbmTrainer
 
 learning_rates = [0.007]
-target_sparsities = [0.1]
-sparsity_constants = [0.95]
+target_sparsities = [0.08]
+sparsity_constants = [0.9]
 
 number_of_bases = 40
 visible_layer_shape = (1, 1, 28, 28)
-hidden_layer_shape = (1, 1, 22, 22)
+hidden_layer_shape = (1, 1, 19, 19)
 
 print("Loading Training Set - START")
 f = gzip.open("/home/dave/Downloads/mnist.pkl.gz", "rb")
@@ -41,14 +41,14 @@ def run_experiment():
                     os.makedirs(get_subdir_name(lr, sc, ts) + '/histograms')
 
                     myRbm = crbm.BinaryCrbm(number_of_bases, visible_layer_shape, hidden_layer_shape, sc, ts, lr)
-                    trainer = RbmTrainer(myRbm, train_set, valid_set, output_directory='mnist_single_layer/7x7/')
+                    trainer = RbmTrainer(myRbm, train_set, valid_set, output_directory='mnist_single_layer/10x10/')
 
                     iteration_count = 0
                     for image in train_set:
                         hidden_bias_delta, sparsity_delta, \
                         visible_bias_delta, weight_group_delta = trainer.train_given_sample(image)
 
-                        if (iteration_count % 500 == 0):
+                        if iteration_count % 500 == 0:
                             test_idx = np.random.randint(1, len(valid_set) - 1)
                             test_sample = valid_set[test_idx].copy()
                             recreation = myRbm.gibbs_vhv(test_sample)
@@ -56,11 +56,13 @@ def run_experiment():
                                                        sparsity_delta, weight_group_delta, 1, test_sample, recreation)
 
                         iteration_count += 1
+
+                    np.save('{}/learned_state.npy'.format(get_subdir_name(lr, sc, ts)), myRbm.getStateObject())
                 print("Running Experiment For Vals {} {} {} - END".format(lr, ts, sc))
 
 
 def get_subdir_name(lr, sc, ts):
-    return 'mnist_single_layer/7x7/' + str(lr) + '_' + str(ts) + '_' + str(sc)
+    return 'mnist_single_layer/10x10/' + str(lr) + '_' + str(ts) + '_' + str(sc)
 
 
 run_experiment()

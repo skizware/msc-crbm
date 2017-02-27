@@ -31,18 +31,23 @@ class crbm(object):
         print self.weight_groups.shape
 
     def getStateObject(self):
-        return {'hidden_layer_shape': self.hidden_layer_shape, 'visible_layer_shape': self.visible_layer_shape, \
-                'numBases': self.numBases, 'visible_bias': self.visible_bias,
-                'hidden_group_biases': self.hidden_group_biases, \
-                'weight_groups': self.weight_groups}
+        return {'hidden_layer_shape': self.get_hidden_layer_shape(), 'visible_layer_shape': self.get_vis_layer_shape(),
+                'numBases': self.numBases, 'visible_bias': self.get_vis_bias(),
+                'hidden_group_biases': self.get_hidden_group_biases(),
+                'weight_groups': self.get_weight_groups(), 'REGULARIZATION_RATE': self.get_regularization_rate(),
+                'TARGET_SPARSITY': self.get_target_sparsity(), 'LEARNING_RATE': self.get_learning_rate(),
+                'type': type(self)}
 
     def loadStateObject(self, stateObject):
-        self.hidden_layer_shape = stateObject['hidden_layer_shape']
-        self.visible_layer_shape = stateObject['visible_layer_shape']
+        self.set_hidden_layer_shape(stateObject['hidden_layer_shape'])
+        self.set_vis_layer_shape(stateObject['visible_layer_shape'])
         self.numBases = stateObject['numBases']
-        self.visible_bias = stateObject['visible_bias']
-        self.hidden_group_biases = stateObject['hidden_group_biases']
-        self.weight_groups = stateObject['weight_groups']
+        self.set_vis_bias(stateObject['visible_bias'])
+        self.set_hidden_group_biases(stateObject['hidden_group_biases'])
+        self.set_weight_groups(stateObject['weight_groups'])
+        self.set_regularization_rate(stateObject['REGULARIZATION_RATE'])
+        self.set_target_sparsity(stateObject['TARGET_SPARSITY'])
+        self.set_learning_rate(stateObject['LEARNING_RATE'])
 
     def contrastive_divergence(self, trainingSample):
         h0_pre_sample, h0_sample = self.sample_h_given_v(trainingSample)
@@ -82,6 +87,54 @@ class crbm(object):
 
     def _sigmoid(self, x):
         return 1. / (1 + np.exp(-x))
+
+    def get_vis_bias(self):
+        return self.th_visible_bias.get_value()
+
+    def set_vis_bias(self, vis_bias):
+        self.th_visible_bias.set_value(vis_bias)
+
+    def get_hidden_group_biases(self):
+        return self.th_hidden_group_biases.get_value()
+
+    def set_hidden_group_biases(self, hidden_group_biases):
+        self.th_hidden_group_biases.set_value(hidden_group_biases)
+
+    def get_weight_groups(self):
+        return self.th_weight_groups.get_value()
+
+    def set_weight_groups(self, weight_groups):
+        self.th_weight_groups.set_value(weight_groups)
+
+    def get_vis_layer_shape(self):
+        return self.th_visible_layer_shape.get_value()
+
+    def set_vis_layer_shape(self, vis_layer_shape):
+        self.th_visible_layer_shape.set_value(vis_layer_shape)
+
+    def get_hidden_layer_shape(self):
+        return self.th_hidden_layer_shape.get_value()
+
+    def set_hidden_layer_shape(self, hidden_layer_shape):
+        self.th_hidden_layer_shape.set_value(hidden_layer_shape)
+
+    def get_learning_rate(self):
+        return self.th_learning_rate.get_value()
+
+    def set_learning_rate(self, learning_rate):
+        self.th_learning_rate.set_value(learning_rate)
+
+    def get_regularization_rate(self):
+        return self.th_regularization_rate.get_value()
+
+    def set_regularization_rate(self, regularization_rate):
+        self.th_regularization_rate.set_value(regularization_rate)
+
+    def get_target_sparsity(self):
+        return self.th_target_sparsity.get_value()
+
+    def set_target_sparsity(self, target_sparsity):
+        self.th_target_sparsity.set_value(target_sparsity)
 
     # =========================Theano Specifics=====================#
     def __init_theano_vars(self):
@@ -125,7 +178,7 @@ class crbm(object):
         th_v_given_h_output_pre_sample = T.nnet.conv2d(th_v_given_h_input, self.th_weight_groups.swapaxes(0, 1),
                                                        border_mode='full') + self.th_visible_bias
         th_v_given_h_output_sampled = self.theano_rng.normal(avg=th_v_given_h_output_pre_sample,
-                                                             size=self.visible_layer_shape)
+                                                             size=th_v_given_h_output_pre_sample.shape)
 
         op = th.function(
             inputs=[th_v_given_h_input],
