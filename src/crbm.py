@@ -55,7 +55,7 @@ class crbm(object):
         h1_pre_sample, h1_sample = self.gibbs_hvh(h0_sample)
 
         weight_group_delta = self.__th_update_weights(
-            self.th_hidden_layer_shape.get_value()[2] * self.th_hidden_layer_shape.get_value()[3],
+            self.__get_hidden_layer_normalization_factor(),
             trainingSample, h0_pre_sample, v1_sample, h1_pre_sample)
 
         hidden_bias_delta, sparsity_delta, bias_updates = self.__th_update_hidden_biases(h0_pre_sample, h1_pre_sample)
@@ -224,11 +224,11 @@ class crbm(object):
 
         th_diff = th_h0_pre_sample - th_h1_pre_sample
 
-        th_hidden_bias_delta = self.th_learning_rate * (1. / self.th_hidden_layer_shape.get_value()[2] ** 2) * (
+        th_hidden_bias_delta = self.th_learning_rate * (1. / self.__get_hidden_layer_normalization_factor()) * (
             th_diff.sum(axis=(2, 3)))
 
         th_sparsity_delta = self.th_regularization_rate * (
-            self.th_target_sparsity - (1. / self.th_hidden_layer_shape.get_value()[2] ** 2) * th_h0_pre_sample.sum(
+            self.th_target_sparsity - (1. / self.__get_hidden_layer_normalization_factor()) * th_h0_pre_sample.sum(
                 (0, 2, 3)))
 
         th_bias_updates = th_hidden_bias_delta + th_sparsity_delta
@@ -241,12 +241,15 @@ class crbm(object):
 
         return op
 
+    def __get_hidden_layer_normalization_factor(self):
+        return self.th_hidden_layer_shape.get_value()[2] * self.th_hidden_layer_shape.get_value()[3]
+
     def __init__th_update_visible_bias(self):
         th_v0 = T.tensor4('th_v0', dtype=th.config.floatX)
         th_v1 = T.tensor4('th_v1', dtype=th.config.floatX)
 
         th_diff = th_v0 - th_v1
-        th_bias_update = self.th_learning_rate * (1. / self.th_visible_layer_shape.get_value()[2] ** 2) * \
+        th_bias_update = self.th_learning_rate * (1. / self.__get_hidden_layer_normalization_factor()) * \
                          (th_diff.sum())
 
         op = th.function(
