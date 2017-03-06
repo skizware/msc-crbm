@@ -1,11 +1,12 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import crbm
+import os
 
 
 class RbmTrainer(object):
     def __init__(self, crbm, train_set, valid_set, stats_collection_period=500, num_training_epochs=1,
-                 output_directory='', image_loader=None):
+                 output_directory='./', image_loader=None):
         self.targetRbm = crbm
         self.learning_rate = crbm.LEARNING_RATE
         self.target_sparsity = crbm.TARGET_SPARSITY
@@ -16,6 +17,10 @@ class RbmTrainer(object):
         self.num_epochs = num_training_epochs
         self.output_dir = output_directory
         self.image_loader = image_loader
+        if not os.path.exists(self.output_dir + 'recreations/'):
+            os.mkdir(self.output_dir + 'recreations/')
+        if not os.path.exists(self.output_dir + 'histograms/'):
+            os.mkdir(self.output_dir + 'histograms/')
 
     def train_rbm_unsupervised(self):
         recreation_err_sqrd = []
@@ -49,14 +54,14 @@ class RbmTrainer(object):
         return hidden_bias_delta, sparsity_delta, visible_bias_delta, weight_group_delta
 
     def collect_statistics(self, hidden_bias_delta, index, recreation_err_sqrd, sparsity_delta, weight_group_delta,
-                           current_epoch, test_sample, recreation):
+                           current_epoch, test_sample, recreation, visualized_filters):
 
         print("Collecting stats for sample {}".format(index))
         self.__plot_and_save_sample_recreation_comparison(index, recreation, test_sample, current_epoch)
         self.__plot_and_save_recreation_squared_error(recreation, recreation_err_sqrd, test_sample)
         self.__plot_and_save_weight_histograms(index, weight_group_delta, current_epoch)
         self.__plot_and_save_hidden_bias_histograms(hidden_bias_delta, index, sparsity_delta, current_epoch)
-        self.__plot_and_save_learned_filters(index, current_epoch)
+        self.__plot_and_save_learned_filters(index, current_epoch, visualized_filters)
 
     def __plot_and_save_sample_recreation_comparison(self, index, recreation, test_sample, current_epoch):
         fig = plt.figure()
@@ -67,7 +72,7 @@ class RbmTrainer(object):
         recreat.set_title('Recreation')
         plt.imshow(recreation[0][0][0], cmap='gray')
         fig.savefig(
-            self.__get_subdir_name() + '/recreations/recreation_' + str(current_epoch) + '_' + str(index) + '.png')
+            self.__get_subdir_name() + 'recreations/recreation_' + str(current_epoch) + '_' + str(index) + '.png')
         plt.close(fig)
 
     def __plot_and_save_recreation_squared_error(self, recreation, recreation_err_sqrd, test_sample):
@@ -75,7 +80,7 @@ class RbmTrainer(object):
         fig = plt.figure()
         fig.add_subplot(1, 1, 1).set_title('Recreation squared error')
         plt.plot(recreation_err_sqrd)
-        fig.savefig(self.__get_subdir_name() + "/recreation_squared_error.png")
+        fig.savefig(self.__get_subdir_name() + "recreation_squared_error.png")
         plt.close(fig)
 
     def __plot_and_save_weight_histograms(self, index, weight_group_delta, current_epoch):
@@ -92,7 +97,7 @@ class RbmTrainer(object):
         fig_deltas.set_title('Weight Deltas')
         plt.hist(weight_group_delta.reshape(weight_group_delta.size), bins=100)
         fig.tight_layout()
-        fig.savefig(self.__get_subdir_name() + '/histograms/histogram_weights_' + str(current_epoch) + '_' + str(
+        fig.savefig(self.__get_subdir_name() + 'histograms/histogram_weights_' + str(current_epoch) + '_' + str(
             index) + '.png')
         plt.close(fig)
 
@@ -112,48 +117,24 @@ class RbmTrainer(object):
         fig_hidden_bias_deltas.set_title("Sparsity Deltas")
         plt.hist(sparsity_delta.reshape(sparsity_delta.size), bins=20)
         fig.tight_layout()
-        fig.savefig(self.__get_subdir_name() + '/histograms/histogram_hidden_biases_' + str(current_epoch) + '_' + str(
+        fig.savefig(self.__get_subdir_name() + 'histograms/histogram_hidden_biases_' + str(current_epoch) + '_' + str(
             index) + '.png')
         plt.close(fig)
 
-    def __plot_and_save_learned_filters(self, index, current_epoch):
+    def __plot_and_save_learned_filters(self, index, current_epoch, visualized_filters, cmap_val='gray'):
         fig, _ = plt.subplots()
         fig_learned_filters = fig.add_subplot(1, 1, 1)
         fig_learned_filters.set_title("Learned Filters")
-        closest_factors_numBases = self.__get_biggest_factors_of(self.targetRbm.numBases)
+
+        plt.imshow(visualized_filters, cmap=cmap_val)
         fig.tight_layout()
-
-        width = closest_factors_numBases[0] * self.targetRbm.th_weight_groups.get_value().shape[2]
-        height = closest_factors_numBases[1] * self.targetRbm.th_weight_groups.get_value().shape[3]
-
-        plt.imshow(self.__unblockshaped(np.average(self.targetRbm.th_weight_groups.get_value(), axis=1), width, height),
-                   cmap='gray')
-        fig.savefig(self.__get_subdir_name() + '/recreations/filters_' + str(current_epoch) + '_' + str(index) + '.png')
+        fig.savefig(self.__get_subdir_name() + 'recreations/filters_' + str(current_epoch) + '_' + str(index) + '.png')
         plt.close(fig)
 
     def __get_subdir_name(self):
-        return self.output_dir + str(self.learning_rate) + '_' + str(self.target_sparsity) + '_' + str(
-            self.sparsity_regularization_rate)
-
-    def __unblockshaped(self, arr, h, w):
-        """
-        Return an array of shape (h, w) where
-        h * w = arr.size
-
-        If arr is of shape (n, nrows, ncols), n sublocks of shape (nrows, ncols),
-        then the returned array preserves the "physical" layout of the sublocks.
-        """
-        n, nrows, ncols = arr.shape
-        return (arr.reshape(h // nrows, -1, nrows, ncols)
-                .swapaxes(1, 2)
-                .reshape(h, w))
+        return self.output_dir
 
     def normalize_image(self, input_image):
         input_image = input_image - input_image.mean()
         input_image = input_image / input_image.std()
         return input_image
-
-    def __get_biggest_factors_of(self, size):
-        factors = list(reduce(list.__add__,
-                              ([i, size // i] for i in range(1, int(size ** 0.5) + 1) if size % i == 0)))
-        return factors[len(factors) - 2:]
