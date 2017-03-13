@@ -6,13 +6,16 @@ import os
 
 class DbnTrainer(object):
     def __init__(self, dbn, train_set, valid_set, stats_collection_period=500, num_training_epochs=1,
-                 output_directory='', image_loader=None):
+                 output_directory='', image_loader=None, learning_rate_eval_period=25, lr_error_multiplier=(1.)*10**(-7)):
         self.rbm_trainers = []
         self.target_dbn = dbn
         self.train_set = train_set
         self.valid_set = valid_set
         self.image_loader = image_loader
         self.stats_collection_period = stats_collection_period
+        self.num_training_epochs = num_training_epochs
+        self.learning_rate_eval_period = learning_rate_eval_period
+        self.lr_error_multiplier = lr_error_multiplier
         count = 0
         for layer in self.target_dbn.layers:
             trainer = rbm_trainer.RbmTrainer(layer, train_set, valid_set, stats_collection_period, num_training_epochs,
@@ -29,30 +32,40 @@ class DbnTrainer(object):
             print "TRAINING LAYER {}".format(layer_idx)
             trainer = self.rbm_trainers[layer_idx]
             recreation_err_squared = []
-            np.random.shuffle(self.train_set)
-            iteration_count = 0
-            for image in self.train_set:
-                sample = image.copy()
-                if self.image_loader is not None:
-                    sample = self.image_loader.load_image(sample)
-                if layer_idx != 0:
-                    sample = self.target_dbn.sample_h_given_v(image, ending_layer=layer_idx - 1)[1]
-                hidden_bias_delta, sparsity_delta, \
-                visible_bias_delta, weight_group_delta = trainer.train_given_sample(sample)
-
-                if (iteration_count % self.stats_collection_period == 0):
-                    test_idx = np.random.randint(1, len(self.valid_set) - 1)
-                    test_sample = self.valid_set[test_idx].copy()
+            for epoch_num in range(0,self.num_training_epochs):
+                np.random.shuffle(self.train_set)
+                iteration_count = 0
+                for image in self.train_set:
+                    sample = image.copy()
                     if self.image_loader is not None:
-                        test_sample = self.image_loader.load_image(test_sample)
-                    recreation = self.target_dbn.recreation_at_layer(test_sample, layer_idx)
-                    visualized_filters = self.visualize_filters(layer_idx)
+                        sample = self.image_loader.load_image(sample)
+                    if layer_idx != 0:
+                        sample = self.target_dbn.sample_h_given_v(sample, ending_layer=layer_idx - 1)[1]
+                    hidden_bias_delta, sparsity_delta, \
+                    visible_bias_delta, weight_group_delta = trainer.train_given_sample(sample)
 
-                    trainer.collect_statistics(hidden_bias_delta, iteration_count, recreation_err_squared,
-                                               sparsity_delta, weight_group_delta, 1, test_sample, recreation,
-                                               visualized_filters)
+                    if iteration_count % self.learning_rate_eval_period == 0:
+                        layer_recreation = self.target_dbn.layers[layer_idx].gibbs_vhv(sample)[0]
+                        layer_recreation_err_sqrd = ((sample - layer_recreation)**2).sum()
+                        print ("Layer recreation error = {}".format(layer_recreation_err_sqrd))
+                        print ("Setting learning rate to {}".format(self.lr_error_multiplier*layer_recreation_err_sqrd))
+                        self.target_dbn.layers[layer_idx].set_learning_rate(self.lr_error_multiplier*layer_recreation_err_sqrd)
 
-                iteration_count += 1
+                    if (iteration_count % self.stats_collection_period == 0):
+                        test_idx = np.random.randint(1, len(self.valid_set) - 1)
+                        test_sample = self.valid_set[test_idx].copy()
+                        if self.image_loader is not None:
+                            test_sample = self.image_loader.load_image(test_sample)
+                        recreation = self.target_dbn.recreation_at_layer(test_sample, layer_idx)
+                        visualized_filters = self.visualize_filters(layer_idx)
+
+                        trainer.collect_statistics(hidden_bias_delta, iteration_count, recreation_err_squared,
+                                                   sparsity_delta, weight_group_delta, epoch_num, test_sample, recreation,
+                                                   visualized_filters)
+
+
+
+                    iteration_count += 1
 
     def visualize_filters(self, layer_idx):
         num_bases = self.target_dbn.layers[layer_idx].numBases
@@ -67,8 +80,8 @@ class DbnTrainer(object):
             filter_collector.append(outp[0][0][0])
 
         allOutp = np.array(filter_collector)
-        factors = self.__get_biggest_factors_of(allOutp.shape[0] * allOutp.shape[1] * allOutp.shape[2])
-        return self.__unblockshaped(allOutp, factors[0], factors[1])
+        factors = self.__get_biggest_factors_of(allOutp.shape[0])
+        return self.__unblockshaped(allOutp, factors[0] * allOutp.shape[1], factors[1] * allOutp.shape[2])
 
     def __unblockshaped(self, arr, h, w):
         """
