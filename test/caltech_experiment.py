@@ -20,7 +20,7 @@ LAYER_AND_GRID_SUBDIR = 'layer_{}/bases{}_filtW{}_filtH{}/lr{}_ts{}_sc{}/'
 
 IMAGE_LOADER = NormalizingResizingImageLoader(300, 200)
 GRIDS = [
-    {'lr': [0.001], 'ts': [0.01], 'sc': [0.9], 'lr_error_multiplier':1e-7, 'num_epochs':4}
+    {'lr': [0.001], 'ts': [0.04], 'sc': [0.9], 'lr_error_multiplier': 1e-7, 'num_epochs': 4}
 ]
 
 with os.popen('find {} -name *.jpg'.format(DATA_LOCATION)) as f:
@@ -58,15 +58,24 @@ for grid in GRIDS:
                 try:
                     for layer in LAYERS:
                         train_current_layer = True
-                        train_set = np.array(image_refs_unsupervised[:int(math.ceil(len(image_refs_unsupervised) * 0.8))])
-                        valid_set = np.array(image_refs_unsupervised[int(math.ceil(len(image_refs_unsupervised) * 0.8)):])
+                        train_set = np.array(
+                            image_refs_unsupervised[:int(math.ceil(len(image_refs_unsupervised) * 0.8))])
+                        valid_set = np.array(
+                            image_refs_unsupervised[int(math.ceil(len(image_refs_unsupervised) * 0.8)):])
                         print "Train set size = " + str(train_set.shape)
 
-                        layer_crbm = crbm.crbm(visible_layer_shape=layer[INPUT_SHAPE_KEY],
-                                               hidden_layer_shape=layer[OUTPUT_SHAPE_KEY],
-                                               numBases=layer[NUM_BASES_KEY], sparsity_regularizarion_rate=sc,
-                                               target_sparsity=ts,
-                                               learning_rate=lr)
+                        if layer_idx == 0:
+                            layer_crbm = crbm.crbm(visible_layer_shape=layer[INPUT_SHAPE_KEY],
+                                                   hidden_layer_shape=layer[OUTPUT_SHAPE_KEY],
+                                                   numBases=layer[NUM_BASES_KEY], sparsity_regularizarion_rate=sc,
+                                                   target_sparsity=ts,
+                                                   learning_rate=lr)
+                        else:
+                            layer_crbm = crbm.BinaryCrbm(visible_layer_shape=layer[INPUT_SHAPE_KEY],
+                                                         hidden_layer_shape=layer[OUTPUT_SHAPE_KEY],
+                                                         numBases=layer[NUM_BASES_KEY], sparsity_regularizarion_rate=sc,
+                                                         target_sparsity=ts,
+                                                         learning_rate=lr)
 
                         output_dir += get_layer_and_grid_out_dir(layer_crbm)
 
@@ -82,7 +91,8 @@ for grid in GRIDS:
                             myDbn = cdbn.Dbn(dbn_layers)
                             trainer = DbnTrainer(myDbn, train_set, valid_set,
                                                  output_directory=output_dir + 'results/', image_loader=IMAGE_LOADER,
-                                                 stats_collection_period=500, num_training_epochs=grid['num_epochs'], lr_error_multiplier=grid['lr_error_multiplier'])
+                                                 stats_collection_period=500, num_training_epochs=grid['num_epochs'],
+                                                 lr_error_multiplier=grid['lr_error_multiplier'])
                             trainer.train_dbn_unsupervised(starting_layer=layer_idx)
 
                             np.save(output_dir + 'learned_state.npy',
