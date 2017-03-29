@@ -1,7 +1,7 @@
 from abc import ABCMeta, abstractmethod
 from unit import LayerUnits
 from inference import NonPooledInferenceBinaryVisible, NonPooledInferenceGaussianVisible
-from sampling import RbmGibbsSampler
+from sampling import RbmGibbsSampler, RbmPersistentGibbsSampler
 import numpy as np
 
 import theano as th
@@ -213,9 +213,11 @@ class AbstractLayer:
 
 
 class BinaryVisibleNonPooledLayer(AbstractLayer):
-    def __init__(self, vis_unit_shape, hid_unit_shape, pre_set_vis_units=None, pre_set_hid_units=None):
+    def __init__(self, vis_unit_shape, hid_unit_shape, pre_set_vis_units=None, pre_set_hid_units=None,
+                 learning_rate=0.01, target_sparsity=0.01, sparsity_learning_rate=0.9):
         super(BinaryVisibleNonPooledLayer, self).__init__(vis_unit_shape, hid_unit_shape, pre_set_vis_units,
-                                                          pre_set_hid_units)
+                                                          pre_set_hid_units, learning_rate, target_sparsity,
+                                                          sparsity_learning_rate)
 
     def init_inference_proc(self):
         self.inference_proc = NonPooledInferenceBinaryVisible(self)
@@ -224,10 +226,17 @@ class BinaryVisibleNonPooledLayer(AbstractLayer):
         self.sampling_proc = RbmGibbsSampler(self)
 
 
+class BinaryVisibleNonPooledPersistentSamplerChainLayer(BinaryVisibleNonPooledLayer):
+    def init_sampling_proc(self):
+        self.sampling_proc = RbmPersistentGibbsSampler(self)
+
+
 class GaussianVisibleNonPooledLayer(AbstractLayer):
-    def __init__(self, vis_unit_shape, hid_unit_shape, pre_set_vis_units=None, pre_set_hid_units=None):
+    def __init__(self, vis_unit_shape, hid_unit_shape, pre_set_vis_units=None, pre_set_hid_units=None,
+                 learning_rate=0.01, target_sparsity=0.01, sparsity_learning_rate=0.9):
         super(GaussianVisibleNonPooledLayer, self).__init__(vis_unit_shape, hid_unit_shape, pre_set_vis_units,
-                                                            pre_set_hid_units)
+                                                            pre_set_hid_units, learning_rate, target_sparsity,
+                                                            sparsity_learning_rate)
 
     def init_inference_proc(self):
         self.inference_proc = NonPooledInferenceGaussianVisible(self)
