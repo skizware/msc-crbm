@@ -101,8 +101,8 @@ class AbstractLayer:
         else:
             self.__hid_units = LayerUnits(hid_unit_shape)
 
-            self.__vis_units.set_connected_up(self.__hid_units)
-            self.__hid_units.set_connected_down(self.__vis_units)
+        self.__vis_units.set_connected_up(self.__hid_units)
+        self.__hid_units.set_connected_down(self.__vis_units)
 
     @staticmethod
     def __get_weight_matrix_shape(vis_unit_shape, hid_unit_shape):
@@ -116,6 +116,12 @@ class AbstractLayer:
 
     def get_hidden_biases(self):
         return self.__th_hid_biases
+
+    def get_hidden_units(self):
+        return self.__hid_units
+
+    def get_visible_units(self):
+        return self.__vis_units
 
     def get_visible_bias(self):
         return self.__th_vis_bias
