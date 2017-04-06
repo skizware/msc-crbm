@@ -28,7 +28,7 @@ class AbstractDbn(object):
             layer_idx_to_train += len(self.layers)
 
         if layer_idx_to_train is not 0:
-            actual_train_input = self.infer_hid_given_vis(train_input, layer_idx_to_train - 1)[1]
+            actual_train_input = self.infer_hid_given_vis(actual_train_input, layer_idx_to_train - 1)[1]
 
         return self.layers[layer_idx_to_train].train_on_minibatch(actual_train_input)
 

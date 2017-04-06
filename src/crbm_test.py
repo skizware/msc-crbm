@@ -1,7 +1,4 @@
 import cPickle, gzip
-import pylab as plt
-import numpy as np
-import crbm
 from layer import BinaryVisibleNonPooledLayer
 from dbn import AbstractDbn
 from datetime import datetime
@@ -34,5 +31,5 @@ myLayer = BinaryVisibleNonPooledLayer((1, 1, 28, 28), (1, 40, 19, 19), target_sp
                                       sparsity_learning_rate=0.1)
 
 myDbn = AbstractDbn(myLayer)
-myDbn.add_layer((1, 40, 10, 10), learning_rate=0.001)
+myDbn.add_layer((1, 100, 10, 10), learning_rate=0.01)
 testRbm(myDbn)

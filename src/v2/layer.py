@@ -61,7 +61,7 @@ class AbstractLayer:
 
         visible_bias_delta = self.__th_update_visible_bias(pos_vis, neg_vis_sampled)
 
-        return [weight_group_delta, hidden_bias_delta, sparsity_delta, bias_updates, visible_bias_delta, neg_vis_infer,
+        return [weight_group_delta, hidden_bias_delta, sparsity_delta, bias_updates, visible_bias_delta, pos_hid_infer, neg_vis_infer,
                 neg_hid_infer]
 
     def sample_from_model(self, initial_input=None):
