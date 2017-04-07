@@ -11,15 +11,17 @@ class DbnTrainer(object):
 
     def train_dbn(self, layer_idx):
         t_start = datetime.datetime.now()
-        print('Layer {} - Train Start: {}', layer_idx, t_start)
-        train_idx = 0
-        np.random.shuffle()
+        print('Layer {} - Train Start: {}'.format(layer_idx, t_start))
+        np.random.shuffle(self.data_set)
 
+        sample_index = 0
         for data_ref in self.data_set:
             train_input = self.data_loader.load_data(data_ref)
             stats = self.target_dbn.train_layer_on_batch(train_input)
 
             if self.stats_collector is not None:
-                self.stats_collector.collect_stats(stats)
+                self.stats_collector.collect_stats(stats, sample_index)
 
-        print('Layer {} - Train End - Elapsed time: {}', layer_idx, datetime.datetime.now() - t_start)
+            sample_index += 1
+
+        print('Layer {} - Train End - Elapsed time: {}'.format(layer_idx, datetime.datetime.now() - t_start))
