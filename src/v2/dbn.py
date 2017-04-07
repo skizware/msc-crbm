@@ -20,6 +20,18 @@ class AbstractDbn(object):
 
         return ret
 
+    def infer_vis_given_hid(self, hid_input, start_layer_index=-1, end_layer_index_incl=-1):
+        if end_layer_index_incl is -1:
+            end_layer_index_incl = 0
+        if start_layer_index is -1:
+            start_layer_index += len(self.layers)
+
+        ret = self.layers[start_layer_index].infer_vis_given_hid(hid_input)
+        for layer_idx in xrange(start_layer_index - 1, end_layer_index_incl - 1, -1):
+            ret = self.layers[layer_idx].infer_vis_given_hid()
+
+        return ret
+
     def train_layer_on_batch(self, train_input, layer_idx_to_train=-1):
         actual_train_input = train_input.copy()
         if layer_idx_to_train is -1:
@@ -33,12 +45,12 @@ class AbstractDbn(object):
     def add_layer(self, new_layer_input_shape, new_layer_output_shape, learning_rate=0.01, target_sparsity=0.1,
                   sparsity_learning_rate=0.1):
         layer = self.create_next_layer(new_layer_input_shape, new_layer_output_shape, learning_rate, target_sparsity,
-                                         sparsity_learning_rate)
+                                       sparsity_learning_rate)
         self.layers.append(layer)
 
     @abstractmethod
     def create_next_layer(self, new_layer_input_shape, new_layer_output_shape, learning_rate, target_sparsity,
-                            sparsity_learning_rate):
+                          sparsity_learning_rate):
         pass
 
 
@@ -47,7 +59,7 @@ class BinaryVisibleNonPooledDbn(AbstractDbn):
         super(BinaryVisibleNonPooledDbn, self).__init__(first_layer, saved_state)
 
     def create_next_layer(self, new_layer_input_shape, new_layer_output_shape, learning_rate, target_sparsity,
-                            sparsity_learning_rate):
+                          sparsity_learning_rate):
         if len(self.layers) is 0:
             return BinaryVisibleNonPooledLayer(vis_unit_shape=new_layer_input_shape,
                                                hid_unit_shape=new_layer_output_shape,
