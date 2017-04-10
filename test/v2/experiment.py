@@ -74,11 +74,11 @@ starting_dbn = BinaryVisibleNonPooledDbn()
 mnistExp = MnistExperiment(starting_dbn)
 
 grids_example = {
-    KEY_VIS_SHAPE: (1, 1, 28, 28),
-    KEY_HID_SHAPE: (1, 40, 19, 19),
+    KEY_VIS_SHAPE: (1, 40, 19, 19),
+    KEY_HID_SHAPE: (1, 100, 10, 10),
     KEY_LEARNING_RATES: [0.1],
     KEY_TARGET_SPARSITIES: [0.1],
-    KEY_SPARSITY_LEARNING_RATES: [1]
+    KEY_SPARSITY_LEARNING_RATES: [0.9]
 }
 
-mnistExp.run_grids(grids_example)
+resultant = mnistExp.run_grids(grids_example)

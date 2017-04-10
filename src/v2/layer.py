@@ -30,7 +30,7 @@ class AbstractLayer:
         self.__rng = np.random.RandomState()
         self.__learning_rate = learning_rate
         self.__hid_normalization_factor = hid_unit_shape[2] * hid_unit_shape[3]
-        self.__vis_normalization_factor = vis_unit_shape[2] * vis_unit_shape[3]
+        self.__vis_normalization_factor = vis_unit_shape[1] * vis_unit_shape[2] * vis_unit_shape[3]
         self.__target_sparsity = target_sparsity
         self.__sparsity_learning_rate = sparsity_learning_rate
 
@@ -61,8 +61,10 @@ class AbstractLayer:
 
         visible_bias_delta = self.__th_update_visible_bias(pos_vis, neg_vis_sampled)
 
+        recreation_squared_error = ((pos_vis - neg_vis_infer)**2).sum()
+
         return [weight_group_delta, hidden_bias_delta, sparsity_delta, bias_updates, visible_bias_delta, pos_hid_infer, neg_vis_infer,
-                neg_hid_infer]
+                neg_hid_infer, recreation_squared_error]
 
     def sample_from_model(self, initial_input=None):
         return self.sampling_proc.sample_from_distribution(initial_input)

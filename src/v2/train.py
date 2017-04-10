@@ -18,13 +18,10 @@ class DbnTrainer(object):
         for data_ref in self.data_set:
             train_input = self.data_loader.load_data(data_ref)
             stats = self.target_dbn.train_layer_on_batch(train_input)
-            stats.append(train_input)
-            stats.append(sample_index)
-            stats.append(self.target_dbn)
 
             if self.stats_collector is not None:
                 self.stats_collector.collect_stats(stats[0], stats[1], stats[2], stats[3], stats[4],
-                      stats[5], stats[6], stats[7], train_input, sample_index, self.target_dbn)
+                      stats[5], stats[6], stats[7], stats[8], train_input, sample_index, self.target_dbn)
 
             sample_index += 1
 
