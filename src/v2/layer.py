@@ -7,6 +7,17 @@ import numpy as np
 import theano as th
 from theano import tensor as T
 from theano.tensor.shared_randomstreams import RandomStreams
+from scipy.signal import convolve2d
+
+KEY_LAYER_TYPE = 'layer_type'
+KEY_HID_BIASES = 'hidden_biases'
+KEY_VIS_BIAS = 'visible_bias'
+KEY_WEIGHT_MATRIX = 'weight_matrix'
+KEY_SPARSITY_LEARNING_RATE = 'sparsity_learning_rate'
+KEY_TARGET_SPARSITY = 'target_sparsity'
+KEY_LEARNING_RATE = 'learning_rate'
+KEY_HID_SHAPE = 'hidden_shape'
+KEY_VIS_SHAPE = 'visible_shape'
 
 
 class AbstractLayer:
@@ -21,7 +32,7 @@ class AbstractLayer:
     """
 
     def __init__(self, vis_unit_shape, hid_unit_shape, pre_set_vis_units=None, pre_set_hid_units=None,
-                 learning_rate=0.01, target_sparsity=0.01, sparsity_learning_rate=0.9):
+                 learning_rate=0.01, target_sparsity=1., sparsity_learning_rate=0.):
         self.__init_units(hid_unit_shape, vis_unit_shape, pre_set_hid_units, pre_set_vis_units)
         self.__batch_size = vis_unit_shape[0]
         self.__num_bases = hid_unit_shape[1]
@@ -55,16 +66,40 @@ class AbstractLayer:
         pos_hid_infer, pos_hid_sampled = self.infer_hid_given_vis(input_batch)
         neg_vis_infer, neg_vis_sampled, neg_hid_infer, neg_hid_sampled = self.sample_from_model(pos_hid_sampled)
 
-        weight_group_delta = self.__th_update_weights(pos_vis, pos_hid_infer, neg_vis_sampled, neg_hid_infer)
+        weight_group_delta = np.zeros(self.get_weight_matrix().get_value().shape)
+        for filter_group in xrange(0, self.get_num_hidden_groups()):
+            for channel in xrange(0, self.get_num_visible_channels()):
+                weight_group_delta[filter_group, channel] = self.get_weight_delta_for_group_and_channel(filter_group,
+                                                                                                        channel,
+                                                                                                        pos_vis,
+                                                                                                        pos_hid_infer,
+                                                                                                        neg_vis_sampled,
+                                                                                                        neg_hid_infer)
+
+        self.__th_weight_matrix.set_value(self.__th_weight_matrix.get_value() + weight_group_delta)
+        # weight_group_delta = self.__th_update_weights(pos_vis, pos_hid_infer, neg_vis_sampled, neg_hid_infer)
         hidden_bias_delta, sparsity_delta, bias_updates = self.__th_update_hidden_biases(pos_hid_sampled,
                                                                                          neg_hid_sampled)
 
         visible_bias_delta = self.__th_update_visible_bias(pos_vis, neg_vis_sampled)
 
-        recreation_squared_error = ((pos_vis - neg_vis_infer)**2).sum()
+        recreation_squared_error = ((pos_vis - neg_vis_infer) ** 2).sum()
 
-        return [weight_group_delta, hidden_bias_delta, sparsity_delta, bias_updates, visible_bias_delta, pos_hid_infer, neg_vis_infer,
+        return [weight_group_delta, hidden_bias_delta, sparsity_delta, bias_updates, visible_bias_delta, pos_hid_infer,
+                neg_vis_infer,
                 neg_hid_infer, recreation_squared_error]
+
+    def get_weight_delta_for_group_and_channel(self, filter_group, channel, pos_vis, pos_hid_infer, neg_vis_sampled,
+                                               neg_hid_infer):
+        return self.__learning_rate * (1. / self.__hid_normalization_factor) * (
+            convolve2d(pos_vis[0][channel], np.rot90(pos_hid_infer[0][filter_group], 2), mode='valid') - \
+            convolve2d(neg_vis_sampled[0][channel], np.rot90(neg_hid_infer[0][filter_group], 2), mode='valid'))
+
+    def get_num_hidden_groups(self):
+        return self.__hid_units.get_shape()[1]
+
+    def get_num_visible_channels(self):
+        return self.__vis_units.get_shape()[1]
 
     def sample_from_model(self, initial_input=None):
         return self.sampling_proc.sample_from_distribution(initial_input)
@@ -131,6 +166,50 @@ class AbstractLayer:
     def get_rng(self):
         return self.__theano_rng
 
+    def get_learning_rate(self):
+        return self.__learning_rate
+
+    def get_target_sparsity(self):
+        return self.__target_sparsity
+
+    def get_sparsity_learning_rate(self):
+        return self.__sparsity_learning_rate
+
+    def get_state_object(self):
+        state = {KEY_VIS_SHAPE: self.__th_vis_shape, KEY_HID_SHAPE: self.__th_vis_shape,
+                 KEY_LEARNING_RATE: self.__learning_rate, KEY_TARGET_SPARSITY: self.__target_sparsity,
+                 KEY_SPARSITY_LEARNING_RATE: self.__sparsity_learning_rate,
+                 KEY_WEIGHT_MATRIX: self.__th_weight_matrix.get_value(),
+                 KEY_VIS_BIAS: self.__th_vis_bias.get_value(),
+                 KEY_HID_BIASES: self.__th_hid_biases.get_value(),
+                 KEY_LAYER_TYPE: type(self)}
+
+        return state
+
+    def set_weight_matrix(self, weight_matrix):
+        self.__th_weight_matrix.set_value(weight_matrix)
+        self.__weight_matrix = weight_matrix
+
+    def set_vis_bias(self, vis_bias):
+        self.__th_vis_bias.set_value(vis_bias)
+        self.__vis_bias = vis_bias
+
+    def set_hid_bias(self, hid_biases):
+        self.__th_hid_biases.set_value(hid_biases)
+        self.__hid_biases = hid_biases
+
+    def set_learning_rate(self, learning_rate):
+        self.__th_learning_rate.set_value(learning_rate)
+        self.__learning_rate = learning_rate
+
+    def set_target_sparsity(self, target_sparsity):
+        self.__th_target_sparsity.set_value(target_sparsity)
+        self.__target_sparsity = target_sparsity
+
+    def set_sparsity_learning_rate(self, sparsity_learning_rate):
+        self.__th_sparsity_learning_rate.set_value(sparsity_learning_rate)
+        self.__sparsity_learning_rate = sparsity_learning_rate
+
     # ==============================Theano Specifics================================== #
     def __th_setup(self):
         self.__theano_rng = RandomStreams(self.__rng.randint(2 ** 30))
@@ -148,6 +227,8 @@ class AbstractLayer:
         self.__th_update_weights = self.__init__th_update_weights()
         self.__th_update_hidden_biases = self.__init__th_update_hidden_biases()
         self.__th_update_visible_bias = self.__init__th_update_visible_bias()
+
+    """DO NOT USE _ DOES NOT WORK FOR LAYERS > 1"""
 
     def __init__th_update_weights(self):
         th_input_sample = T.tensor4('th_inputSample', dtype=th.config.floatX)

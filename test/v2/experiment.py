@@ -14,6 +14,7 @@ KEY_LEARNING_RATES = 'learning_rates'
 KEY_TARGET_SPARSITIES = 'target_sparsities'
 KEY_SPARSITY_LEARNING_RATES = 'sparsity_learrning_rates'
 KEY_LAYER_TYPE = 'layer_type'
+DIR_OUT_RESULTS = 'results/'
 
 
 class AbstractDbnGridSearchExperiment(object):
@@ -32,9 +33,11 @@ class AbstractDbnGridSearchExperiment(object):
                     dbn_copy.add_layer(grids[KEY_VIS_SHAPE], grids[KEY_HID_SHAPE], learning_rate=learning_rate,
                                        target_sparsity=target_sparsity, sparsity_learning_rate=sparsity_learning_rate)
 
-                    trainer = DbnTrainer(dbn_copy, self.train_set, self.get_data_loader(), self.get_stats_collector("results/test/"))
+                    trainer = DbnTrainer(dbn_copy, self.train_set, self.get_data_loader(),
+                                         self.get_stats_collector(self.get_dbn_output_dir(dbn_copy)),
+                                         self.get_dbn_output_dir(dbn_copy))
                     trainer.train_dbn(len(dbn_copy.layers) - 1)
-
+                    trainer.save_state()
                     results["{}_{}_{}".format(learning_rate, target_sparsity, sparsity_learning_rate)] = dbn_copy
 
         return results
@@ -50,6 +53,16 @@ class AbstractDbnGridSearchExperiment(object):
     @abstractmethod
     def get_stats_collector(self, results_output_dir):
         pass
+
+    def get_dbn_output_dir(self, dbn):
+        out = DIR_OUT_RESULTS
+        for layer_idx in xrange(0, len(dbn.layers)):
+            dbn_layer = dbn.layers[layer_idx]
+            out += "layer_{}/lr_{}_st_{}_slr_{}/".format(layer_idx, dbn_layer.get_learning_rate(),
+                                                         dbn_layer.get_target_sparsity(),
+                                                         dbn_layer.get_sparsity_learning_rate())
+
+        return out
 
 
 class MnistExperiment(AbstractDbnGridSearchExperiment):
@@ -74,11 +87,11 @@ starting_dbn = BinaryVisibleNonPooledDbn()
 mnistExp = MnistExperiment(starting_dbn)
 
 grids_example = {
-    KEY_VIS_SHAPE: (1, 40, 19, 19),
-    KEY_HID_SHAPE: (1, 100, 10, 10),
-    KEY_LEARNING_RATES: [0.1],
-    KEY_TARGET_SPARSITIES: [0.1],
-    KEY_SPARSITY_LEARNING_RATES: [0.9]
+    KEY_VIS_SHAPE: (1, 1, 28, 28),
+    KEY_HID_SHAPE: (1, 40, 19, 19),
+    KEY_LEARNING_RATES: [1., 0.1, 0.01],
+    KEY_TARGET_SPARSITIES: [1.],
+    KEY_SPARSITY_LEARNING_RATES: [0.]
 }
 
 resultant = mnistExp.run_grids(grids_example)

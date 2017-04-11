@@ -32,6 +32,13 @@ class AbstractDbn(object):
 
         return ret
 
+    def get_learned_state(self):
+        learned_state = {}
+        for layer_idx in xrange(0, len(self.layers)):
+            learned_state[layer_idx] = self.layers[layer_idx].get_state_object()
+
+        return learned_state
+
     def train_layer_on_batch(self, train_input, layer_idx_to_train=-1):
         actual_train_input = train_input.copy()
         if layer_idx_to_train is -1:
