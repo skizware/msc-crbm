@@ -1,5 +1,11 @@
 from abc import ABCMeta, abstractmethod
-from layer import BinaryVisibleNonPooledLayer
+from layer import BinaryVisibleNonPooledLayer, GaussianVisibleNonPooledLayer
+from layer import KEY_VIS_SHAPE, KEY_HID_SHAPE, KEY_LAYER_TYPE, KEY_LEARNING_RATE, KEY_HID_BIASES, \
+    KEY_SPARSITY_LEARNING_RATE, KEY_TARGET_SPARSITY, KEY_VIS_BIAS, KEY_WEIGHT_MATRIX
+
+KEY_DBN_TYPE = 'type'
+
+KEY_LAYERS = 'layers'
 
 
 class AbstractDbn(object):
@@ -33,9 +39,10 @@ class AbstractDbn(object):
         return ret
 
     def get_learned_state(self):
-        learned_state = {}
+        learned_state = {KEY_LAYERS: {},
+                         KEY_DBN_TYPE: type(self)}
         for layer_idx in xrange(0, len(self.layers)):
-            learned_state[layer_idx] = self.layers[layer_idx].get_state_object()
+            learned_state[KEY_LAYERS][layer_idx] = self.layers[layer_idx].get_state_object()
 
         return learned_state
 
@@ -81,3 +88,38 @@ class BinaryVisibleNonPooledDbn(AbstractDbn):
                                                pre_set_vis_units=next_layer_vis_units,
                                                learning_rate=learning_rate, target_sparsity=target_sparsity,
                                                sparsity_learning_rate=sparsity_learning_rate)
+
+
+class GaussianVisibleNonPooledDbn(AbstractDbn):
+    def __init__(self, first_layer=None, saved_state=None):
+        super(GaussianVisibleNonPooledDbn, self).__init__(first_layer, saved_state)
+
+    def create_next_layer(self, new_layer_input_shape, new_layer_output_shape, learning_rate, target_sparsity,
+                          sparsity_learning_rate):
+        if len(self.layers) is 0:
+            return GaussianVisibleNonPooledLayer(vis_unit_shape=new_layer_input_shape,
+                                                 hid_unit_shape=new_layer_output_shape,
+                                                 learning_rate=learning_rate,
+                                                 target_sparsity=target_sparsity,
+                                                 sparsity_learning_rate=sparsity_learning_rate)
+        else:
+            top_layer = self.layers[-1]
+            next_layer_vis_units = top_layer.get_hidden_units()
+            return BinaryVisibleNonPooledLayer(vis_unit_shape=next_layer_vis_units.get_shape(),
+                                               hid_unit_shape=new_layer_output_shape,
+                                               pre_set_vis_units=next_layer_vis_units,
+                                               learning_rate=learning_rate, target_sparsity=target_sparsity,
+                                               sparsity_learning_rate=sparsity_learning_rate)
+
+
+class DbnFromStateBuilder(object):
+    @staticmethod
+    def init_dbn(learned_state):
+        dbn = learned_state[KEY_DBN_TYPE]()
+        for layer_idx in learned_state[KEY_LAYERS]:
+            layer_state = learned_state[KEY_LAYERS][layer_idx]
+            dbn.add_layer(layer_state[KEY_VIS_SHAPE], layer_state[KEY_HID_SHAPE], layer_state[KEY_LEARNING_RATE],
+                          layer_state[KEY_TARGET_SPARSITY], layer_state[KEY_SPARSITY_LEARNING_RATE])
+            dbn.layers[layer_idx].set_internal_state(layer_state)
+
+        return dbn

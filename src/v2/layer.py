@@ -176,7 +176,7 @@ class AbstractLayer:
         return self.__sparsity_learning_rate
 
     def get_state_object(self):
-        state = {KEY_VIS_SHAPE: self.__th_vis_shape, KEY_HID_SHAPE: self.__th_vis_shape,
+        state = {KEY_VIS_SHAPE: self.__vis_units.get_shape(), KEY_HID_SHAPE: self.__hid_units.get_shape(),
                  KEY_LEARNING_RATE: self.__learning_rate, KEY_TARGET_SPARSITY: self.__target_sparsity,
                  KEY_SPARSITY_LEARNING_RATE: self.__sparsity_learning_rate,
                  KEY_WEIGHT_MATRIX: self.__th_weight_matrix.get_value(),
@@ -210,9 +210,24 @@ class AbstractLayer:
         self.__th_sparsity_learning_rate.set_value(sparsity_learning_rate)
         self.__sparsity_learning_rate = sparsity_learning_rate
 
+    def set_internal_state(self, learned_state):
+        self.__weight_matrix = learned_state[KEY_WEIGHT_MATRIX]
+        self.__hid_biases = learned_state[KEY_HID_BIASES]
+        self.__vis_bias = learned_state[KEY_VIS_BIAS]
+        self.th_var_init()
+
     # ==============================Theano Specifics================================== #
     def __th_setup(self):
         self.__theano_rng = RandomStreams(self.__rng.randint(2 ** 30))
+        self.th_var_init()
+        self.__th_op_init()
+
+    def __th_op_init(self):
+        self.__th_update_weights = self.__init__th_update_weights()
+        self.__th_update_hidden_biases = self.__init__th_update_hidden_biases()
+        self.__th_update_visible_bias = self.__init__th_update_visible_bias()
+
+    def th_var_init(self):
         self.__th_vis_bias = th.shared(self.__vis_bias)
         self.__th_hid_biases = th.shared(self.__hid_biases)
         self.__th_weight_matrix = th.shared(self.__weight_matrix)
@@ -223,10 +238,6 @@ class AbstractLayer:
         self.__th_vis_normalization_factor = th.shared(self.__vis_normalization_factor)
         self.__th_target_sparsity = th.shared(self.__target_sparsity)
         self.__th_sparsity_learning_rate = th.shared(self.__sparsity_learning_rate)
-
-        self.__th_update_weights = self.__init__th_update_weights()
-        self.__th_update_hidden_biases = self.__init__th_update_hidden_biases()
-        self.__th_update_visible_bias = self.__init__th_update_visible_bias()
 
     """DO NOT USE _ DOES NOT WORK FOR LAYERS > 1"""
 

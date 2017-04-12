@@ -32,10 +32,10 @@ class MultiChannelPlottingDbnTrainingStatsCollector(object):
                                                          end_layer_index_incl=-1)[
                 0] if trained_layer_idx is not 0 else neg_vis_infer
 
-            self.__plot_and_save_sample_recreation_comparison(sample_number, network_recreation, original_input, 1)
             self.__plot_and_save_recreation_squared_error(layer_rec_err_sqrd, self.recreation_error_sqrd_collector)
             self.__plot_and_save_hidden_bias_histograms(hidden_bias_delta, sample_number, sparsity_delta, 1, dbn)
             self.__plot_and_save_weight_histograms(sample_number, weight_group_delta, 1, dbn)
+            self.__plot_and_save_sample_recreation_comparison(sample_number, network_recreation, original_input, 1)
 
     def __plot_and_save_sample_recreation_comparison(self, index, recreation, test_sample, current_epoch):
         num_channels = test_sample.shape[1]
@@ -72,7 +72,8 @@ class MultiChannelPlottingDbnTrainingStatsCollector(object):
 
         fig_hidden_biases = fig.add_subplot(3, 1, 1)
         fig_hidden_biases.set_title("Hidden Biases")
-        plt.hist(dbn.layers[-1].get_hidden_biases().get_value(), bins=20)
+        trained_layer_hidden_biases = dbn.layers[-1].get_hidden_biases().get_value()
+        plt.hist(trained_layer_hidden_biases.reshape(trained_layer_hidden_biases.size), bins=20)
         fig_hidden_bias_deltas = fig.add_subplot(3, 1, 2)
         fig_hidden_bias_deltas.set_title("Hidden Bias Deltas")
         plt.hist(hidden_bias_delta.reshape(hidden_bias_delta.size), bins=20)
