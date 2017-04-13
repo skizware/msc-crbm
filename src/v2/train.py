@@ -1,6 +1,7 @@
 import datetime
 import numpy as np
 import os
+import traceback
 
 STATE_FILE_NAME='dbn_state{}.npy'
 
@@ -20,7 +21,14 @@ class DbnTrainer(object):
         sample_index = 0
         for data_ref in self.data_set:
             train_input = self.data_loader.load_data(data_ref)
-            stats = self.target_dbn.train_layer_on_batch(train_input)
+            try:
+                stats = self.target_dbn.train_layer_on_batch(train_input)
+            except Exception, e:
+                print "ERROR!!!"
+                print e
+                print "Caused By:"
+                print data_ref
+                print traceback.format_exc()
 
             if self.stats_collector is not None:
                 self.stats_collector.collect_stats(stats[0], stats[1], stats[2], stats[3], stats[4],

@@ -16,7 +16,7 @@ class NormalizingCropOrPadToSizeImageLoader(MnistDataLoader):
 
     def load_data(self, image_location):
         readImage = io.imread(image_location)
-        if (len(readImage.shape) > 2):
+        if len(readImage.shape) > 2:
             grayscaleImage = self.__rgb2gray(readImage)
         else:
             grayscaleImage = readImage

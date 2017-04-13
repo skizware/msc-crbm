@@ -10,7 +10,7 @@ import os
 import traceback
 
 MNIST_DATA_SET_PATH = '/home/dave/data/mnist.pkl.gz'
-CALTEC_DATA_SET_PATH = '/home/dave/data/101_ObjectCategories'
+CALTEC_DATA_SET_PATH = '/home/dave/data/101_ObjectCategories/'
 KEY_VIS_SHAPE = 'vis_shape'
 KEY_HID_SHAPE = 'hid_shape'
 KEY_LEARNING_RATES = 'learning_rates'
@@ -118,7 +118,7 @@ caltechExp = CaltechExperiment(starting_dbn)
 grids_example = {
     KEY_VIS_SHAPE: (1, 1, 200, 300),
     KEY_HID_SHAPE: (1, 25, 191, 291),
-    KEY_LEARNING_RATES: [0.001, 0.0001],
+    KEY_LEARNING_RATES: [0.001],
     KEY_TARGET_SPARSITIES: [1.],
     KEY_SPARSITY_LEARNING_RATES: [0.]
 }

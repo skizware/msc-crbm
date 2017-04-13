@@ -96,7 +96,7 @@ class DbnTrainer(object):
                 .swapaxes(1, 2)
                 .reshape(h, w))
 
-    def __get_biggest_factors_of(self, size):
+    def __get_biggest_factors_of( size):
         factors = list(reduce(list.__add__,
                               ([i, size // i] for i in range(1, int(size ** 0.5) + 1) if size % i == 0)))
         return factors[len(factors) - 2:]

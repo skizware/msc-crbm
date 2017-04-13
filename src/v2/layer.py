@@ -8,6 +8,7 @@ import theano as th
 from theano import tensor as T
 from theano.tensor.shared_randomstreams import RandomStreams
 from scipy.signal import convolve2d
+import math
 
 KEY_LAYER_TYPE = 'layer_type'
 KEY_HID_BIASES = 'hidden_biases'
@@ -75,6 +76,9 @@ class AbstractLayer:
                                                                                                         pos_hid_infer,
                                                                                                         neg_vis_sampled,
                                                                                                         neg_hid_infer)
+
+        if math.isnan(np.average(weight_group_delta)):
+            raise Exception("Some shit went NaN")
 
         self.__th_weight_matrix.set_value(self.__th_weight_matrix.get_value() + weight_group_delta)
         # weight_group_delta = self.__th_update_weights(pos_vis, pos_hid_infer, neg_vis_sampled, neg_hid_infer)
@@ -279,7 +283,7 @@ class AbstractLayer:
         th_diff = th_h0_pre_sample - th_h1_pre_sample
 
         th_hidden_bias_delta = self.__th_learning_rate * (1. / self.__th_hid_normalization_factor) * (
-            th_diff.sum(axis=(2, 3)))
+            th_diff.sum(axis=(0, 2, 3)))
 
         th_sparsity_delta = self.__th_sparsity_learning_rate * (
             self.__th_target_sparsity - (1. / self.__th_hid_normalization_factor) * th_h0_pre_sample.sum(
