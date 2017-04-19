@@ -24,11 +24,11 @@ class MultiChannelPlottingDbnTrainingStatsCollector(object):
 
     def collect_stats(self, weight_group_delta, hidden_bias_delta, sparsity_delta, bias_updates, visible_bias_delta,
                       pos_hid_infer, neg_vis_infer, neg_hid_infer, layer_rec_err_sqrd, original_input, sample_number,
-                      dbn):
+                      dbn, neg_vis_sampled):
         if sample_number % self.stats_collection_period is 0:
             print('Collecting stats for sample {} at {}'.format(sample_number, datetime.datetime.now()))
             trained_layer_idx = len(dbn.layers) - 1
-            network_recreation = dbn.infer_vis_given_hid(neg_vis_infer, start_layer_index=trained_layer_idx - 1,
+            network_recreation = dbn.infer_vis_given_hid(neg_vis_sampled, start_layer_index=trained_layer_idx - 1,
                                                          end_layer_index_incl=-1)[
                 0] if trained_layer_idx is not 0 else neg_vis_infer
 

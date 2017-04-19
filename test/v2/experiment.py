@@ -1,9 +1,11 @@
 from data import MnistDataLoader, NormalizingCropOrPadToSizeImageLoader
+import dbn
 from train import DbnTrainer
 from abc import ABCMeta, abstractmethod
 import copy
 import cPickle
 import gzip
+import numpy as np
 from dbn import BinaryVisibleNonPooledDbn, GaussianVisibleNonPooledDbn
 from stats import MultiChannelPlottingDbnTrainingStatsCollector
 import os
@@ -17,7 +19,7 @@ KEY_LEARNING_RATES = 'learning_rates'
 KEY_TARGET_SPARSITIES = 'target_sparsities'
 KEY_SPARSITY_LEARNING_RATES = 'sparsity_learrning_rates'
 KEY_LAYER_TYPE = 'layer_type'
-DIR_OUT_RESULTS = 'caltech/results/'
+DIR_OUT_RESULTS = 'mnist/results/'
 
 
 class AbstractDbnGridSearchExperiment(object):
@@ -48,7 +50,6 @@ class AbstractDbnGridSearchExperiment(object):
                         with open(self.get_dbn_output_dir(dbn_copy) + 'error.txt', 'w') as f:
                             traceback.print_exc(file=f)
                         trainer.save_state("AT_ERROR")
-
 
         return results
 
@@ -109,18 +110,17 @@ class CaltechExperiment(AbstractDbnGridSearchExperiment):
     def get_stats_collector(self, results_output_dir):
         return MultiChannelPlottingDbnTrainingStatsCollector(results_output_dir)
 
-
-starting_dbn = GaussianVisibleNonPooledDbn()
-
-# mnistExp = MnistExperiment(starting_dbn)
-caltechExp = CaltechExperiment(starting_dbn)
+# starting_dbn = dbn.DbnFromStateBuilder.init_dbn(np.load('/home/dave/code/msc-crbm/test/v2/mnist/results/layer_0/lr_0.01_st_0.1_slr_0.9/dbn_state.npy').item())
+starting_dbn = dbn.BinaryVisibleNonPooledDbn()
+mnistExp = MnistExperiment(starting_dbn)
+# caltechExp = CaltechExperiment(starting_dbn)
 
 grids_example = {
-    KEY_VIS_SHAPE: (1, 1, 200, 300),
-    KEY_HID_SHAPE: (1, 25, 191, 291),
+    KEY_VIS_SHAPE: (1, 40, 19, 19),
+    KEY_HID_SHAPE: (1, 100, 10, 10),
     KEY_LEARNING_RATES: [0.001],
-    KEY_TARGET_SPARSITIES: [1.],
-    KEY_SPARSITY_LEARNING_RATES: [0.]
+    KEY_TARGET_SPARSITIES: [0.03],
+    KEY_SPARSITY_LEARNING_RATES: [0.1]
 }
 
-resultant = caltechExp.run_grids(grids_example)
+resultant2 = mnistExp.run_grids(grids_example)

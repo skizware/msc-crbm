@@ -67,37 +67,26 @@ class AbstractLayer:
         pos_hid_infer, pos_hid_sampled = self.infer_hid_given_vis(input_batch)
         neg_vis_infer, neg_vis_sampled, neg_hid_infer, neg_hid_sampled = self.sample_from_model(pos_hid_sampled)
 
-        weight_group_delta = np.zeros(self.get_weight_matrix().get_value().shape)
-        for filter_group in xrange(0, self.get_num_hidden_groups()):
-            for channel in xrange(0, self.get_num_visible_channels()):
-                weight_group_delta[filter_group, channel] = self.get_weight_delta_for_group_and_channel(filter_group,
-                                                                                                        channel,
-                                                                                                        pos_vis,
-                                                                                                        pos_hid_infer,
-                                                                                                        neg_vis_sampled,
-                                                                                                        neg_hid_infer)
+        weight_group_delta = self.__th_update_weights(pos_vis.swapaxes(0,1), pos_hid_infer.swapaxes(0,1), neg_vis_sampled.swapaxes(0,1), neg_hid_infer.swapaxes(0,1)).swapaxes(0,1)
 
         if math.isnan(np.average(weight_group_delta)):
             raise Exception("Some shit went NaN")
 
+        #print "Weight Delta Max: {}. Min: {}, Ave: {}".format(np.max(weight_group_delta),np.min(weight_group_delta), np.average(weight_group_delta))
         self.__th_weight_matrix.set_value(self.__th_weight_matrix.get_value() + weight_group_delta)
         # weight_group_delta = self.__th_update_weights(pos_vis, pos_hid_infer, neg_vis_sampled, neg_hid_infer)
         hidden_bias_delta, sparsity_delta, bias_updates = self.__th_update_hidden_biases(pos_hid_sampled,
                                                                                          neg_hid_sampled)
+        #print "Hid Bias Delta Max: {}|{}. Min: {}|{}, Ave: {}|{}".format(np.max(hidden_bias_delta),np.max(sparsity_delta),np.min(hidden_bias_delta),np.min(sparsity_delta), np.average(hidden_bias_delta),np.average(sparsity_delta))
 
         visible_bias_delta = self.__th_update_visible_bias(pos_vis, neg_vis_sampled)
+        #print "Vis Bias Delta Max: {}. Min: {}, Ave: {}".format(np.max(visible_bias_delta),np.min(visible_bias_delta), np.average(visible_bias_delta))
 
         recreation_squared_error = ((pos_vis - neg_vis_infer) ** 2).sum()
 
         return [weight_group_delta, hidden_bias_delta, sparsity_delta, bias_updates, visible_bias_delta, pos_hid_infer,
                 neg_vis_infer,
-                neg_hid_infer, recreation_squared_error]
-
-    def get_weight_delta_for_group_and_channel(self, filter_group, channel, pos_vis, pos_hid_infer, neg_vis_sampled,
-                                               neg_hid_infer):
-        return self.__learning_rate * (1. / self.__hid_normalization_factor) * (
-            convolve2d(pos_vis[0][channel], np.rot90(pos_hid_infer[0][filter_group], 2), mode='valid') - \
-            convolve2d(neg_vis_sampled[0][channel], np.rot90(neg_hid_infer[0][filter_group], 2), mode='valid'))
+                neg_hid_infer, recreation_squared_error, neg_vis_sampled]
 
     def get_num_hidden_groups(self):
         return self.__hid_units.get_shape()[1]
@@ -243,35 +232,21 @@ class AbstractLayer:
         self.__th_target_sparsity = th.shared(self.__target_sparsity)
         self.__th_sparsity_learning_rate = th.shared(self.__sparsity_learning_rate)
 
-    """DO NOT USE _ DOES NOT WORK FOR LAYERS > 1"""
-
     def __init__th_update_weights(self):
+        """NB - Assumes the input for visible samples is (NumVisChannels, 1, R, C) and input for hidden samples is 
+        (NumHidChannels, 1, R, C) """
         th_input_sample = T.tensor4('th_inputSample', dtype=th.config.floatX)
         th_h0_pre_sample = T.tensor4('th_h0_pre_sample', dtype=th.config.floatX)
         th_v1_sampled = T.tensor4('th_v1_sampled', dtype=th.config.floatX)
         th_h1_pre_sample = T.tensor4('th_h1_pre_sample', dtype=th.config.floatX)
 
-        def get_weight_updates_for_channel(channel_idx, vis_layer_shape, inputSample, h0_pre_sample, v1_sample,
-                                           h1_pre_sample,
-                                           learning_rate):
-            return learning_rate * (1. / vis_layer_shape) * \
-                   ((T.nnet.conv2d([inputSample[:, channel_idx, :, :]], h0_pre_sample.swapaxes(0, 1), filter_flip=False,
-                                   border_mode='valid') - \
-                     T.nnet.conv2d([v1_sample[:, channel_idx, :, :]], h1_pre_sample.swapaxes(0, 1), filter_flip=False,
-                                   border_mode='valid'))[0])
-
-        outputs, _ = th.scan(
-            fn=get_weight_updates_for_channel,
-            sequences=np.arange(self.__th_vis_shape.get_value()[1]),
-            non_sequences=[self.__th_hid_normalization_factor, th_input_sample, th_h0_pre_sample, th_v1_sampled,
-                           th_h1_pre_sample,
-                           self.__th_learning_rate]
-        )
+        output = self.__th_learning_rate * (1. / self.__th_hid_normalization_factor) * \
+                 (T.nnet.conv2d(th_input_sample, th_h0_pre_sample, filter_flip=False, border_mode='valid') -
+                  T.nnet.conv2d(th_v1_sampled, th_h1_pre_sample, filter_flip=False, border_mode='valid'))
 
         op = th.function(
             inputs=[th_input_sample, th_h0_pre_sample, th_v1_sampled, th_h1_pre_sample],
-            outputs=outputs.swapaxes(0, 1),
-            updates=[(self.get_weight_matrix(), self.get_weight_matrix() + outputs.swapaxes(0, 1))]
+            outputs=output
         )
 
         return op
@@ -286,15 +261,14 @@ class AbstractLayer:
             th_diff.sum(axis=(0, 2, 3)))
 
         th_sparsity_delta = self.__th_sparsity_learning_rate * (
-            self.__th_target_sparsity - (1. / self.__th_hid_normalization_factor) * th_h0_pre_sample.sum(
-                (0, 2, 3)))
+            self.__th_target_sparsity - (1. / self.__th_hid_normalization_factor) * th_h0_pre_sample.sum(axis=(0, 2, 3)))
 
         th_bias_updates = th_hidden_bias_delta + th_sparsity_delta
 
         op = th.function(
             inputs=[th_h0_pre_sample, th_h1_pre_sample],
-            outputs=[th_hidden_bias_delta, th_sparsity_delta, th_bias_updates[0]],
-            updates=[(self.__th_hid_biases, self.__th_hid_biases + th_bias_updates[0])]
+            outputs=[th_hidden_bias_delta, th_sparsity_delta, th_bias_updates],
+            updates=[(self.__th_hid_biases, self.__th_hid_biases + th_bias_updates)]
         )
 
         return op

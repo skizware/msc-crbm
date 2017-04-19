@@ -32,7 +32,7 @@ class DbnTrainer(object):
 
             if self.stats_collector is not None:
                 self.stats_collector.collect_stats(stats[0], stats[1], stats[2], stats[3], stats[4],
-                      stats[5], stats[6], stats[7], stats[8], train_input, sample_index, self.target_dbn)
+                      stats[5], stats[6], stats[7], stats[8], train_input, sample_index, self.target_dbn, stats[9])
 
             if sample_index % 5000 is 0:
                 self.save_state('_' + str(sample_index))
