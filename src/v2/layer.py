@@ -204,10 +204,9 @@ class AbstractLayer:
         self.__sparsity_learning_rate = sparsity_learning_rate
 
     def set_internal_state(self, learned_state):
-        self.__weight_matrix = learned_state[KEY_WEIGHT_MATRIX]
-        self.__hid_biases = learned_state[KEY_HID_BIASES]
-        self.__vis_bias = learned_state[KEY_VIS_BIAS]
-        self.th_var_init()
+        self.set_weight_matrix(learned_state[KEY_WEIGHT_MATRIX])
+        self.set_hid_bias(learned_state[KEY_HID_BIASES])
+        self.set_vis_bias(learned_state[KEY_VIS_BIAS])
 
     # ==============================Theano Specifics================================== #
     def __th_setup(self):
