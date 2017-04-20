@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import os
 import datetime
+import numpy as np
 
 DIR_RECREATIONS = 'recreation/'
 DIR_HISTOGRAMS = 'histogram/'
@@ -36,6 +37,23 @@ class MultiChannelPlottingDbnTrainingStatsCollector(object):
             self.__plot_and_save_hidden_bias_histograms(hidden_bias_delta, sample_number, sparsity_delta, 1, dbn)
             self.__plot_and_save_weight_histograms(sample_number, weight_group_delta, 1, dbn)
             self.__plot_and_save_sample_recreation_comparison(sample_number, network_recreation, original_input, 1)
+            filters_by_channel, unblock_shape = self.visualize_filters(trained_layer_idx, dbn)
+            self.__plot_and_save_learned_filters(sample_number, filters_by_channel, unblock_shape)
+
+    def __plot_and_save_learned_filters(self, index, filters_by_channel, unblock_shape, cmap_val='gray'):
+        num_channels = filters_by_channel.shape[1]
+        fig = plt.figure()
+        for i in xrange(0, num_channels):
+            filters_for_channel = filters_by_channel[:, i, :, :]
+            filters = unblockshaped(filters_for_channel, unblock_shape[0], unblock_shape[1])
+            filters_fig = fig.add_subplot(num_channels, 1, i+1)
+            filters_fig.set_title("Filters - Channel {}".format(i))
+            plt.imshow(filters, cmap='gray')
+
+        fig.tight_layout()
+        fig.savefig(
+            self.dir_base_output + DIR_RECREATIONS + FILE_NAME_FILTER_VIS.format(index))
+        plt.close(fig)
 
     def __plot_and_save_sample_recreation_comparison(self, index, recreation, test_sample, current_epoch):
         num_channels = test_sample.shape[1]
@@ -101,6 +119,31 @@ class MultiChannelPlottingDbnTrainingStatsCollector(object):
         fig.savefig(self.dir_base_output + DIR_HISTOGRAMS + FILE_NAME_FILTER_WEIGHT_HISTOGRAM.format(index))
         plt.close(fig)
 
+    def visualize_filters(self, layer_idx, dbn):
+        num_bases = dbn.layers[layer_idx].get_hidden_units().get_shape()[1]
+        filter_collector = []
+        for i in xrange(0, num_bases):
+            hidden_layer_input = np.zeros((1, num_bases, 1, 1))
+            hidden_layer_input[0, i, 0, 0] = 1
+            outp = dbn.infer_vis_given_hid(hidden_layer_input, start_layer_index=layer_idx)
+            # p2 = np.percentile(outp[0][0][0], 2)
+            # p98 = np.percentile(outp[0][0][0], 98)
+            # filter_collector.append(exposure.rescale_intensity(outp[0][0][0], in_range=(p2, p98)))
+            filter_collector.append(outp[0])
+
+        allOutp = np.array(filter_collector)
+        factors = get_biggest_factors_of(allOutp.shape[0])
+        collected_output = allOutp[:, 0, :, :, :]
+        return collected_output, (factors[0] * collected_output.shape[2], factors[1] * collected_output.shape[3])
+        #return unblockshaped(allOutp, factors[0] * allOutp.shape[1], factors[1] * allOutp.shape[2])
+
+
+
+
+def get_biggest_factors_of(size):
+    factors = list(reduce(list.__add__,
+                          ([i, size // i] for i in range(1, int(size ** 0.5) + 1) if size % i == 0)))
+    return factors[len(factors) - 2:]
 
 def unblockshaped(arr, h, w):
     """
@@ -110,7 +153,7 @@ def unblockshaped(arr, h, w):
     If arr is of shape (n, nrows, ncols), n sublocks of shape (nrows, ncols),
     then the returned array preserves the "physical" layout of the sublocks.
     """
-    n, nrows, ncols = a.shape
+    n, nrows, ncols = arr.shape
     return (arr.reshape(h // nrows, -1, nrows, ncols)
             .swapaxes(1, 2)
             .reshape(h, w))
