@@ -5,7 +5,6 @@ from abc import ABCMeta, abstractmethod
 import copy
 import cPickle
 import gzip
-import numpy as np
 from dbn import BinaryVisibleNonPooledDbn, GaussianVisibleNonPooledDbn
 from stats import MultiChannelPlottingDbnTrainingStatsCollector
 import os
@@ -53,11 +52,11 @@ class AbstractDbnGridSearchExperiment(object):
 
         return results
 
-    @abstractmethod
-    def load_data_sets(self):
+    @staticmethod
+    def load_data_sets():
         pass
 
-    @abstractmethod
+    @staticmethod
     def get_data_loader(self):
         pass
 
@@ -80,10 +79,12 @@ class MnistExperiment(AbstractDbnGridSearchExperiment):
     def __init__(self, pre_initialized_dbn):
         super(MnistExperiment, self).__init__(pre_initialized_dbn)
 
-    def get_data_loader(self):
+    @staticmethod
+    def get_data_loader():
         return MnistDataLoader()
 
-    def load_data_sets(self):
+    @staticmethod
+    def load_data_sets():
         f = gzip.open(MNIST_DATA_SET_PATH, "rb")
         train_set, valid_set, test_set = cPickle.load(f)
         f.close()
@@ -97,10 +98,12 @@ class CaltechExperiment(AbstractDbnGridSearchExperiment):
     def __init__(self, pre_initialized_dbn):
         super(CaltechExperiment, self).__init__(pre_initialized_dbn)
 
-    def get_data_loader(self):
+    @staticmethod
+    def get_data_loader():
         return NormalizingCropOrPadToSizeImageLoader(300, 200, grayscale=True)
 
-    def load_data_sets(self):
+    @staticmethod
+    def load_data_sets():
         with os.popen('find {} -name *.jpg'.format(CALTEC_DATA_SET_PATH)) as f:
             image_refs_unsupervised = f.read().split('\n')
 
