@@ -1,14 +1,15 @@
 from abc import ABCMeta, abstractmethod
 from unit import LayerUnits
-from inference import NonPooledInferenceBinaryVisible, NonPooledInferenceGaussianVisible
+from inference import NonPooledInferenceBinaryVisible, NonPooledInferenceGaussianVisible, PooledInferenceBinaryVisible
 from sampling import RbmGibbsSampler, RbmPersistentGibbsSampler
 import numpy as np
 
 import theano as th
 from theano import tensor as T
 from theano.tensor.shared_randomstreams import RandomStreams
-from scipy.signal import convolve2d
 import math
+
+KEY_POOLING_RATIO = 'pooling_ratio'
 
 KEY_LAYER_TYPE = 'layer_type'
 KEY_HID_BIASES = 'hidden_biases'
@@ -75,15 +76,15 @@ class AbstractLayer:
         if np.abs(np.average(weight_group_delta)) > 100:
             raise Exception("Hmm - fishy...")
 
-        print "Weight Delta Max: {}. Min: {}, Ave: {}".format(np.max(weight_group_delta),np.min(weight_group_delta), np.average(weight_group_delta))
+        #print "Weight Delta Max: {}. Min: {}, Ave: {}".format(np.max(weight_group_delta),np.min(weight_group_delta), np.average(weight_group_delta))
         self.__th_weight_matrix.set_value(self.__th_weight_matrix.get_value() + weight_group_delta)
         # weight_group_delta = self.__th_update_weights(pos_vis, pos_hid_infer, neg_vis_sampled, neg_hid_infer)
         hidden_bias_delta, sparsity_delta, bias_updates = self.__th_update_hidden_biases(pos_hid_sampled,
                                                                                          neg_hid_sampled)
-        print "Hid Bias Delta Max: {}|{}. Min: {}|{}, Ave: {}|{}".format(np.max(hidden_bias_delta),np.max(sparsity_delta),np.min(hidden_bias_delta),np.min(sparsity_delta), np.average(hidden_bias_delta),np.average(sparsity_delta))
+        #print "Hid Bias Delta Max: {}|{}. Min: {}|{}, Ave: {}|{}".format(np.max(hidden_bias_delta),np.max(sparsity_delta),np.min(hidden_bias_delta),np.min(sparsity_delta), np.average(hidden_bias_delta),np.average(sparsity_delta))
 
         visible_bias_delta = self.__th_update_visible_bias(pos_vis, neg_vis_sampled)
-        print "Vis Bias Delta Max: {}. Min: {}, Ave: {}".format(np.max(visible_bias_delta),np.min(visible_bias_delta), np.average(visible_bias_delta))
+        #print "Vis Bias Delta Max: {}. Min: {}, Ave: {}".format(np.max(visible_bias_delta),np.min(visible_bias_delta), np.average(visible_bias_delta))
 
         recreation_squared_error = ((pos_vis - neg_vis_infer) ** 2).sum()
 
@@ -308,6 +309,57 @@ class BinaryVisibleNonPooledLayer(AbstractLayer):
 
     def init_sampling_proc(self):
         self.sampling_proc = RbmGibbsSampler(self)
+
+
+class BinaryVisiblePooledLayer(AbstractLayer):
+    def __init__(self, vis_unit_shape, hid_unit_shape, pre_set_vis_units=None, pre_set_hid_units=None,
+                 learning_rate=0.01, target_sparsity=1., sparsity_learning_rate=0., pooling_ratio=2, pre_set_pooling_units=None):
+        self.__pooling_ratio = pooling_ratio
+        super(BinaryVisiblePooledLayer, self).__init__(vis_unit_shape, hid_unit_shape, pre_set_vis_units,
+                                                       pre_set_hid_units, learning_rate, target_sparsity,
+                                                       sparsity_learning_rate)
+
+        self.__init_pool_units(hid_unit_shape, pre_set_pooling_units)
+
+    def __init_pool_units(self, hid_unit_shape, pre_set_pooling_units):
+        if pre_set_pooling_units is None:
+            assert hid_unit_shape[2] % self.__pooling_ratio == 0 & \
+                   hid_unit_shape[3] % self.__pooling_ratio == 0, \
+                   "Pooling layer shape not compatible with pooling ratio"
+
+            pooling_layer_shape = (hid_unit_shape[0], hid_unit_shape[1], hid_unit_shape[2] / self.__pooling_ratio,
+                                   hid_unit_shape[3] / self.__pooling_ratio)
+            self.__pool_units = LayerUnits(pooling_layer_shape)
+        else:
+            assert hid_unit_shape[2] % pre_set_pooling_units.get_shape()[2] == 0 & \
+                   hid_unit_shape[3] % pre_set_pooling_units.get_shape()[3] == 0 & \
+                   hid_unit_shape[2] / pre_set_pooling_units.get_shape()[2] == hid_unit_shape[3] / pre_set_pooling_units.get_shape()[3],\
+                   "Pooling setup fail"
+
+            self.__pool_units = pre_set_pooling_units
+
+        self.get_hidden_units().set_connected_up(self.__pool_units)
+        self.__pool_units.set_connected_down(self.get_hidden_units())
+
+    def init_inference_proc(self):
+        self.inference_proc = PooledInferenceBinaryVisible(self)
+
+    def init_sampling_proc(self):
+        self.sampling_proc = RbmGibbsSampler(self)
+
+    def get_pool_ratio(self):
+        return tuple((self.__pooling_ratio, self.__pooling_ratio))
+
+    def get_pool_units(self):
+        return self.__pool_units
+
+    def get_state_object(self):
+        state = super(BinaryVisiblePooledLayer, self).get_state_object()
+        state[KEY_POOLING_RATIO] = self.__pooling_ratio
+
+    def set_internal_state(self, learned_state):
+        super(BinaryVisiblePooledLayer, self).set_internal_state(learned_state)
+        self.__pooling_ratio = learned_state[KEY_POOLING_RATIO]
 
 
 class BinaryVisibleNonPooledPersistentSamplerChainLayer(BinaryVisibleNonPooledLayer):

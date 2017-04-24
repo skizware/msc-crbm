@@ -1,7 +1,7 @@
 from abc import ABCMeta, abstractmethod
-from layer import BinaryVisibleNonPooledLayer, GaussianVisibleNonPooledLayer
+from layer import BinaryVisibleNonPooledLayer, GaussianVisibleNonPooledLayer, BinaryVisiblePooledLayer
 from layer import KEY_VIS_SHAPE, KEY_HID_SHAPE, KEY_LAYER_TYPE, KEY_LEARNING_RATE, KEY_HID_BIASES, \
-    KEY_SPARSITY_LEARNING_RATE, KEY_TARGET_SPARSITY, KEY_VIS_BIAS, KEY_WEIGHT_MATRIX
+    KEY_SPARSITY_LEARNING_RATE, KEY_TARGET_SPARSITY, KEY_VIS_BIAS, KEY_WEIGHT_MATRIX, KEY_POOLING_RATIO
 
 KEY_DBN_TYPE = 'type'
 
@@ -57,45 +57,62 @@ class AbstractDbn(object):
         return self.layers[layer_idx_to_train].train_on_minibatch(actual_train_input)
 
     def add_layer(self, new_layer_input_shape, new_layer_output_shape, learning_rate=0.01, target_sparsity=0.1,
-                  sparsity_learning_rate=0.1):
+                  sparsity_learning_rate=0.1, pooling_ratio=0):
         layer = self.create_next_layer(new_layer_input_shape, new_layer_output_shape, learning_rate, target_sparsity,
-                                       sparsity_learning_rate)
+                                       sparsity_learning_rate, pooling_ratio)
         self.layers.append(layer)
 
     @abstractmethod
     def create_next_layer(self, new_layer_input_shape, new_layer_output_shape, learning_rate, target_sparsity,
-                          sparsity_learning_rate):
+                          sparsity_learning_rate, pooling_ratio):
         pass
 
 
-class BinaryVisibleNonPooledDbn(AbstractDbn):
+class BinaryVisibleDbn(AbstractDbn):
     def __init__(self, first_layer=None, saved_state=None):
-        super(BinaryVisibleNonPooledDbn, self).__init__(first_layer, saved_state)
+        super(BinaryVisibleDbn, self).__init__(first_layer, saved_state)
 
     def create_next_layer(self, new_layer_input_shape, new_layer_output_shape, learning_rate, target_sparsity,
-                          sparsity_learning_rate):
+                          sparsity_learning_rate, pooling_ratio):
         if len(self.layers) is 0:
-            return BinaryVisibleNonPooledLayer(vis_unit_shape=new_layer_input_shape,
+            if pooling_ratio is not 0:
+                return BinaryVisiblePooledLayer(vis_unit_shape=new_layer_input_shape,
                                                hid_unit_shape=new_layer_output_shape,
                                                learning_rate=learning_rate,
                                                target_sparsity=target_sparsity,
-                                               sparsity_learning_rate=sparsity_learning_rate)
+                                               sparsity_learning_rate=sparsity_learning_rate,
+                                               pooling_ratio=pooling_ratio)
+            else:
+                return BinaryVisibleNonPooledLayer(vis_unit_shape=new_layer_input_shape,
+                                                   hid_unit_shape=new_layer_output_shape,
+                                                   learning_rate=learning_rate,
+                                                   target_sparsity=target_sparsity,
+                                                   sparsity_learning_rate=sparsity_learning_rate)
         else:
             top_layer = self.layers[-1]
-            next_layer_vis_units = top_layer.get_hidden_units()
-            return BinaryVisibleNonPooledLayer(vis_unit_shape=next_layer_vis_units.get_shape(),
-                                               hid_unit_shape=new_layer_output_shape,
-                                               pre_set_vis_units=next_layer_vis_units,
-                                               learning_rate=learning_rate, target_sparsity=target_sparsity,
-                                               sparsity_learning_rate=sparsity_learning_rate)
+            if pooling_ratio is not 0:
+                next_layer_vis_units = top_layer.get_pool_units()
+                return BinaryVisiblePooledLayer(vis_unit_shape=next_layer_vis_units.get_shape(),
+                                                hid_unit_shape=new_layer_output_shape,
+                                                pre_set_vis_units=next_layer_vis_units,
+                                                learning_rate=learning_rate, target_sparsity=target_sparsity,
+                                                sparsity_learning_rate=sparsity_learning_rate,
+                                                pooling_ratio=pooling_ratio)
+            else:
+                next_layer_vis_units = top_layer.get_hidden_units()
+                return BinaryVisibleNonPooledLayer(vis_unit_shape=next_layer_vis_units.get_shape(),
+                                                   hid_unit_shape=new_layer_output_shape,
+                                                   pre_set_vis_units=next_layer_vis_units,
+                                                   learning_rate=learning_rate, target_sparsity=target_sparsity,
+                                                   sparsity_learning_rate=sparsity_learning_rate)
 
 
-class GaussianVisibleNonPooledDbn(AbstractDbn):
+class GaussianVisibleDbn(AbstractDbn):
     def __init__(self, first_layer=None, saved_state=None):
-        super(GaussianVisibleNonPooledDbn, self).__init__(first_layer, saved_state)
+        super(GaussianVisibleDbn, self).__init__(first_layer, saved_state)
 
     def create_next_layer(self, new_layer_input_shape, new_layer_output_shape, learning_rate, target_sparsity,
-                          sparsity_learning_rate):
+                          sparsity_learning_rate, pooling_ratio):
         if len(self.layers) is 0:
             return GaussianVisibleNonPooledLayer(vis_unit_shape=new_layer_input_shape,
                                                  hid_unit_shape=new_layer_output_shape,
@@ -119,7 +136,7 @@ class DbnFromStateBuilder(object):
         for layer_idx in learned_state[KEY_LAYERS]:
             layer_state = learned_state[KEY_LAYERS][layer_idx]
             dbn.add_layer(layer_state[KEY_VIS_SHAPE], layer_state[KEY_HID_SHAPE], layer_state[KEY_LEARNING_RATE],
-                          layer_state[KEY_TARGET_SPARSITY], layer_state[KEY_SPARSITY_LEARNING_RATE])
+                          layer_state[KEY_TARGET_SPARSITY], layer_state[KEY_SPARSITY_LEARNING_RATE], layer_state[KEY_POOLING_RATIO])
             dbn.layers[layer_idx].set_internal_state(layer_state)
 
         return dbn
