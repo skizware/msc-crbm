@@ -5,6 +5,7 @@ class LayerUnits(object):
         self.__connected_up = None
         self.__connected_down = None
         self.__value = None
+        self.__expectation = None
 
     def get_shape(self):
         return self.__shape
@@ -26,3 +27,9 @@ class LayerUnits(object):
 
     def get_value(self):
         return self.__value
+
+    def set_expectation(self, expectation):
+        self.__expectation = expectation
+
+    def get_expectation(self):
+        return self.__expectation

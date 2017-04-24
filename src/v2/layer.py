@@ -72,15 +72,18 @@ class AbstractLayer:
         if math.isnan(np.average(weight_group_delta)):
             raise Exception("Some shit went NaN")
 
-        #print "Weight Delta Max: {}. Min: {}, Ave: {}".format(np.max(weight_group_delta),np.min(weight_group_delta), np.average(weight_group_delta))
+        if np.abs(np.average(weight_group_delta)) > 100:
+            raise Exception("Hmm - fishy...")
+
+        print "Weight Delta Max: {}. Min: {}, Ave: {}".format(np.max(weight_group_delta),np.min(weight_group_delta), np.average(weight_group_delta))
         self.__th_weight_matrix.set_value(self.__th_weight_matrix.get_value() + weight_group_delta)
         # weight_group_delta = self.__th_update_weights(pos_vis, pos_hid_infer, neg_vis_sampled, neg_hid_infer)
         hidden_bias_delta, sparsity_delta, bias_updates = self.__th_update_hidden_biases(pos_hid_sampled,
                                                                                          neg_hid_sampled)
-        #print "Hid Bias Delta Max: {}|{}. Min: {}|{}, Ave: {}|{}".format(np.max(hidden_bias_delta),np.max(sparsity_delta),np.min(hidden_bias_delta),np.min(sparsity_delta), np.average(hidden_bias_delta),np.average(sparsity_delta))
+        print "Hid Bias Delta Max: {}|{}. Min: {}|{}, Ave: {}|{}".format(np.max(hidden_bias_delta),np.max(sparsity_delta),np.min(hidden_bias_delta),np.min(sparsity_delta), np.average(hidden_bias_delta),np.average(sparsity_delta))
 
         visible_bias_delta = self.__th_update_visible_bias(pos_vis, neg_vis_sampled)
-        #print "Vis Bias Delta Max: {}. Min: {}, Ave: {}".format(np.max(visible_bias_delta),np.min(visible_bias_delta), np.average(visible_bias_delta))
+        print "Vis Bias Delta Max: {}. Min: {}, Ave: {}".format(np.max(visible_bias_delta),np.min(visible_bias_delta), np.average(visible_bias_delta))
 
         recreation_squared_error = ((pos_vis - neg_vis_infer) ** 2).sum()
 
@@ -103,8 +106,10 @@ class AbstractLayer:
             assert vis_input is not None, "Error - no value set for visible units"
         else:
             self.__vis_units.set_value(vis_input)
+            self.__vis_units.set_expectation(None)
 
         ret = self.inference_proc.infer_hid_given_vis(vis_input)
+        self.__hid_units.set_expectation(ret[0])
         self.__hid_units.set_value(ret[1])
         return ret
 
@@ -114,8 +119,10 @@ class AbstractLayer:
             assert hid_input is not None, "Error - no value set for hidden units"
         else:
             self.__hid_units.set_value(hid_input)
+            self.__hid_units.set_expectation(None)
 
         ret = self.inference_proc.infer_vis_given_hid(hid_input)
+        self.__vis_units.set_expectation(ret[0])
         self.__vis_units.set_value(ret[1])
         return ret
 
