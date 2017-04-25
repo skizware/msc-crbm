@@ -4,7 +4,7 @@ class RbmGibbsSampler(object):
 
     def sample_from_distribution(self, initial_hidden_val):
         vis_infer, vis_sampled = self.rbm_layer.infer_vis_given_hid(initial_hidden_val)
-        hid_infer, hid_sampled = self.rbm_layer.infer_hid_given_vis(vis_sampled)
+        hid_infer, hid_sampled = self.rbm_layer.infer_hid_given_vis(vis_sampled)[0:2]
 
         return [vis_infer, vis_sampled, hid_infer, hid_sampled]
 

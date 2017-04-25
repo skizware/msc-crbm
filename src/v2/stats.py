@@ -37,8 +37,9 @@ class MultiChannelPlottingDbnTrainingStatsCollector(object):
             self.__plot_and_save_hidden_bias_histograms(hidden_bias_delta, sample_number, sparsity_delta, 1, dbn)
             self.__plot_and_save_weight_histograms(sample_number, weight_group_delta, 1, dbn)
             self.__plot_and_save_sample_recreation_comparison(sample_number, network_recreation, original_input, 1)
-            filters_by_channel, unblock_shape = self.visualize_filters(trained_layer_idx, dbn)
-            self.__plot_and_save_learned_filters(sample_number, filters_by_channel, unblock_shape)
+            #TODO - fix filter visualization for pooled layers
+            #filters_by_channel, unblock_shape = self.visualize_filters(trained_layer_idx, dbn)
+            #self.__plot_and_save_learned_filters(sample_number, filters_by_channel, unblock_shape)
 
     def __plot_and_save_learned_filters(self, index, filters_by_channel, unblock_shape, cmap_val='gray'):
         num_channels = filters_by_channel.shape[1]

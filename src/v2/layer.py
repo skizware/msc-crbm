@@ -65,7 +65,7 @@ class AbstractLayer:
 
     def train_on_minibatch(self, input_batch):
         pos_vis = input_batch
-        pos_hid_infer, pos_hid_sampled = self.infer_hid_given_vis(input_batch)
+        pos_hid_infer, pos_hid_sampled = self.infer_hid_given_vis(input_batch)[0:2]
         neg_vis_infer, neg_vis_sampled, neg_hid_infer, neg_hid_sampled = self.sample_from_model(pos_hid_sampled)
 
         weight_group_delta = self.__th_update_weights(pos_vis.swapaxes(0,1), pos_hid_infer.swapaxes(0,1), neg_vis_sampled.swapaxes(0,1), neg_hid_infer.swapaxes(0,1)).swapaxes(0,1)
@@ -356,10 +356,17 @@ class BinaryVisiblePooledLayer(AbstractLayer):
     def get_state_object(self):
         state = super(BinaryVisiblePooledLayer, self).get_state_object()
         state[KEY_POOLING_RATIO] = self.__pooling_ratio
+        return state
 
     def set_internal_state(self, learned_state):
         super(BinaryVisiblePooledLayer, self).set_internal_state(learned_state)
         self.__pooling_ratio = learned_state[KEY_POOLING_RATIO]
+
+    def infer_hid_given_vis(self, vis_input=None):
+        ret = super(BinaryVisiblePooledLayer, self).infer_hid_given_vis(vis_input)
+        ret.append(self.__pool_units.get_expectation())
+        ret.append(self.__pool_units.get_value())
+        return ret
 
 
 class BinaryVisibleNonPooledPersistentSamplerChainLayer(BinaryVisibleNonPooledLayer):
