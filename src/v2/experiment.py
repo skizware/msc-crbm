@@ -7,7 +7,7 @@ import cPickle
 import gzip
 import numpy as np
 from dbn import BinaryVisibleDbn, GaussianVisibleDbn
-from stats import MultiChannelPlottingDbnTrainingStatsCollector
+from stats import MultiChannelPlottingDbnTrainingStatsCollector, MultiChannelPlottingPersistentChainDbnTrainingStatsCollector
 import os
 import traceback
 
@@ -95,6 +95,14 @@ class MnistExperiment(AbstractDbnGridSearchExperiment):
 
     def get_stats_collector(self, results_output_dir):
         return MultiChannelPlottingDbnTrainingStatsCollector(results_output_dir)
+
+
+class MnistExperimentPersistentGibbs(MnistExperiment):
+    def __init__(self, pre_initialized_dbn, result_output_dir):
+        super(MnistExperimentPersistentGibbs, self).__init__(pre_initialized_dbn, result_output_dir)
+
+    def get_stats_collector(self, results_output_dir):
+        return MultiChannelPlottingPersistentChainDbnTrainingStatsCollector(results_output_dir)
 
 
 class CaltechExperiment(AbstractDbnGridSearchExperiment):

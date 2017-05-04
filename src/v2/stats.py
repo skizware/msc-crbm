@@ -9,6 +9,7 @@ FILE_NAME_HID_BIAS_HISTOGRAM = 'hidden_bias_hist_sample_{}.png'
 FILE_NAME_FILTER_WEIGHT_HISTOGRAM = 'weight_hist_sample_{}.png'
 FILE_NAME_RECREATION = 'sample_{}_recreation.png'
 FILE_NAME_FILTER_VIS = 'sample_{}_filter_vis.png'
+FILE_NAME_CHAIN_SAMPLE = 'sample_{}_from_chain.png'
 
 
 class MultiChannelPlottingDbnTrainingStatsCollector(object):
@@ -38,8 +39,8 @@ class MultiChannelPlottingDbnTrainingStatsCollector(object):
             self.__plot_and_save_weight_histograms(sample_number, weight_group_delta, 1, dbn)
             self.__plot_and_save_sample_recreation_comparison(sample_number, network_recreation, original_input, 1)
             #TODO - fix filter visualization for pooled layers
-            #filters_by_channel, unblock_shape = self.visualize_filters(trained_layer_idx, dbn)
-            #self.__plot_and_save_learned_filters(sample_number, filters_by_channel, unblock_shape)
+            filters_by_channel, unblock_shape = self.visualize_filters(trained_layer_idx, dbn)
+            self.__plot_and_save_learned_filters(sample_number, filters_by_channel, unblock_shape)
 
     def __plot_and_save_learned_filters(self, index, filters_by_channel, unblock_shape, cmap_val='gray'):
         num_channels = filters_by_channel.shape[1]
@@ -139,6 +140,45 @@ class MultiChannelPlottingDbnTrainingStatsCollector(object):
         #return unblockshaped(allOutp, factors[0] * allOutp.shape[1], factors[1] * allOutp.shape[2])
 
 
+class MultiChannelPlottingPersistentChainDbnTrainingStatsCollector(MultiChannelPlottingDbnTrainingStatsCollector):
+    def collect_stats(self, weight_group_delta, hidden_bias_delta, sparsity_delta, bias_updates, visible_bias_delta,
+                      pos_hid_infer, neg_vis_infer, neg_hid_infer, layer_rec_err_sqrd, original_input, sample_number,
+                      dbn, neg_vis_sampled):
+
+        if sample_number % self.stats_collection_period is 0:
+            self.__plot_and_save_chain_sample(sample_number, neg_vis_infer, 1)
+
+        recreation = dbn.infer_vis_given_hid(pos_hid_infer)[0]
+        neg_vis_infer = recreation
+
+        layer_rec_err_sqrd = ((original_input - neg_vis_infer) ** 2).sum()
+
+        super(MultiChannelPlottingPersistentChainDbnTrainingStatsCollector, self).collect_stats(weight_group_delta,
+                                                                                                hidden_bias_delta,
+                                                                                                sparsity_delta,
+                                                                                                bias_updates,
+                                                                                                visible_bias_delta,
+                                                                                                pos_hid_infer,
+                                                                                                neg_vis_infer,
+                                                                                                neg_hid_infer,
+                                                                                                layer_rec_err_sqrd,
+                                                                                                original_input,
+                                                                                                sample_number, dbn,
+                                                                                                neg_vis_sampled)
+
+    def __plot_and_save_chain_sample(self, index, chain_sample, current_epoch):
+        num_channels = chain_sample.shape[1]
+        fig = plt.figure()
+
+        for i in range(0, num_channels):
+            orig = fig.add_subplot(num_channels, 1, i + 1)
+            orig.set_title('Chain Sample - Channel {}'.format(i))
+            plt.imshow(chain_sample[0][i], cmap='gray')
+
+        fig.tight_layout()
+        fig.savefig(
+            self.dir_base_output + DIR_RECREATIONS + FILE_NAME_CHAIN_SAMPLE.format(index))
+        plt.close(fig)
 
 
 def get_biggest_factors_of(size):
