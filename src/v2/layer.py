@@ -410,6 +410,11 @@ class BinaryVisibleNonPooledPersistentSamplerChainLayer(BinaryVisibleNonPooledLa
         self.sampling_proc = RbmPersistentGibbsSampler(self)
 
 
+class BinaryVisiblePooledPersistentSamplerChainLayer(BinaryVisiblePooledLayer):
+    def init_sampling_proc(self):
+        self.sampling_proc = RbmPersistentGibbsSampler(self)
+
+
 class GaussianVisibleNonPooledLayer(AbstractLayer):
     def __init__(self, vis_unit_shape, hid_unit_shape, pre_set_vis_units=None, pre_set_hid_units=None,
                  learning_rate=0.01, target_sparsity=0.01, sparsity_learning_rate=0.9):
@@ -422,3 +427,13 @@ class GaussianVisibleNonPooledLayer(AbstractLayer):
 
     def init_sampling_proc(self):
         self.sampling_proc = RbmGibbsSampler(self)
+
+
+class GaussianVisibleNonPooledPersistentSamplerChainLayer(GaussianVisibleNonPooledLayer):
+    def init_sampling_proc(self):
+        self.sampling_proc = RbmPersistentGibbsSampler(self)
+
+
+class GaussianVisiblePooledPersistentSamplerChainLayer(GaussianVisiblePooledLayer):
+    def init_sampling_proc(self):
+        self.sampling_proc = RbmPersistentGibbsSampler(self)
