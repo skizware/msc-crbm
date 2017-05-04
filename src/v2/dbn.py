@@ -1,5 +1,5 @@
 from abc import ABCMeta, abstractmethod
-from layer import BinaryVisibleNonPooledLayer, GaussianVisibleNonPooledLayer, BinaryVisiblePooledLayer
+from layer import BinaryVisibleNonPooledLayer, GaussianVisibleNonPooledLayer, BinaryVisiblePooledLayer, GaussianVisiblePooledLayer
 from layer import KEY_VIS_SHAPE, KEY_HID_SHAPE, KEY_LAYER_TYPE, KEY_LEARNING_RATE, KEY_HID_BIASES, \
     KEY_SPARSITY_LEARNING_RATE, KEY_TARGET_SPARSITY, KEY_VIS_BIAS, KEY_WEIGHT_MATRIX, KEY_POOLING_RATIO
 
@@ -114,19 +114,36 @@ class GaussianVisibleDbn(AbstractDbn):
     def create_next_layer(self, new_layer_input_shape, new_layer_output_shape, learning_rate, target_sparsity,
                           sparsity_learning_rate, pooling_ratio):
         if len(self.layers) is 0:
-            return GaussianVisibleNonPooledLayer(vis_unit_shape=new_layer_input_shape,
-                                                 hid_unit_shape=new_layer_output_shape,
-                                                 learning_rate=learning_rate,
-                                                 target_sparsity=target_sparsity,
-                                                 sparsity_learning_rate=sparsity_learning_rate)
+            if pooling_ratio is not 0:
+                return GaussianVisiblePooledLayer(vis_unit_shape=new_layer_input_shape,
+                                               hid_unit_shape=new_layer_output_shape,
+                                               learning_rate=learning_rate,
+                                               target_sparsity=target_sparsity,
+                                               sparsity_learning_rate=sparsity_learning_rate,
+                                               pooling_ratio=pooling_ratio)
+            else:
+                return GaussianVisibleNonPooledLayer(vis_unit_shape=new_layer_input_shape,
+                                                   hid_unit_shape=new_layer_output_shape,
+                                                   learning_rate=learning_rate,
+                                                   target_sparsity=target_sparsity,
+                                                   sparsity_learning_rate=sparsity_learning_rate)
         else:
             top_layer = self.layers[-1]
-            next_layer_vis_units = top_layer.get_hidden_units()
-            return BinaryVisibleNonPooledLayer(vis_unit_shape=next_layer_vis_units.get_shape(),
-                                               hid_unit_shape=new_layer_output_shape,
-                                               pre_set_vis_units=next_layer_vis_units,
-                                               learning_rate=learning_rate, target_sparsity=target_sparsity,
-                                               sparsity_learning_rate=sparsity_learning_rate)
+            if pooling_ratio is not 0:
+                next_layer_vis_units = top_layer.get_pool_units()
+                return BinaryVisiblePooledLayer(vis_unit_shape=next_layer_vis_units.get_shape(),
+                                                hid_unit_shape=new_layer_output_shape,
+                                                pre_set_vis_units=next_layer_vis_units,
+                                                learning_rate=learning_rate, target_sparsity=target_sparsity,
+                                                sparsity_learning_rate=sparsity_learning_rate,
+                                                pooling_ratio=pooling_ratio)
+            else:
+                next_layer_vis_units = top_layer.get_hidden_units()
+                return BinaryVisibleNonPooledLayer(vis_unit_shape=next_layer_vis_units.get_shape(),
+                                                   hid_unit_shape=new_layer_output_shape,
+                                                   pre_set_vis_units=next_layer_vis_units,
+                                                   learning_rate=learning_rate, target_sparsity=target_sparsity,
+                                                   sparsity_learning_rate=sparsity_learning_rate)
 
 
 class DbnFromStateBuilder(object):

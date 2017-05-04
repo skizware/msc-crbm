@@ -1,6 +1,6 @@
 from abc import ABCMeta, abstractmethod
 from unit import LayerUnits
-from inference import NonPooledInferenceBinaryVisible, NonPooledInferenceGaussianVisible, PooledInferenceBinaryVisible
+from inference import NonPooledInferenceBinaryVisible, NonPooledInferenceGaussianVisible, PooledInferenceBinaryVisible, PooledInferenceGaussianVisible
 from sampling import RbmGibbsSampler, RbmPersistentGibbsSampler
 import numpy as np
 
@@ -81,10 +81,15 @@ class AbstractLayer:
         # weight_group_delta = self.__th_update_weights(pos_vis, pos_hid_infer, neg_vis_sampled, neg_hid_infer)
         hidden_bias_delta, sparsity_delta, bias_updates = self.__th_update_hidden_biases(pos_hid_sampled,
                                                                                          neg_hid_sampled)
-        #print "Hid Bias Delta Max: {}|{}. Min: {}|{}, Ave: {}|{}".format(np.max(hidden_bias_delta),np.max(sparsity_delta),np.min(hidden_bias_delta),np.min(sparsity_delta), np.average(hidden_bias_delta),np.average(sparsity_delta))
+
+        print "Hid Bias Delta Max: {}|{}. Min: {}|{}, Ave: {}|{}".format(np.max(hidden_bias_delta),np.max(sparsity_delta),np.min(hidden_bias_delta),np.min(sparsity_delta), np.average(hidden_bias_delta),np.average(sparsity_delta))
+        if np.abs(np.average(bias_updates) > 100):
+            raise Exception("Fishy Bias")
+
+        self.__th_hid_biases.set_value(self.__th_hid_biases.get_value() + bias_updates)
 
         visible_bias_delta = self.__th_update_visible_bias(pos_vis, neg_vis_sampled)
-        #print "Vis Bias Delta Max: {}. Min: {}, Ave: {}".format(np.max(visible_bias_delta),np.min(visible_bias_delta), np.average(visible_bias_delta))
+        print "Vis Bias Delta Max: {}. Min: {}, Ave: {}".format(np.max(visible_bias_delta),np.min(visible_bias_delta), np.average(visible_bias_delta))
 
         recreation_squared_error = ((pos_vis - neg_vis_infer) ** 2).sum()
 
@@ -274,8 +279,8 @@ class AbstractLayer:
 
         op = th.function(
             inputs=[th_h0_pre_sample, th_h1_pre_sample],
-            outputs=[th_hidden_bias_delta, th_sparsity_delta, th_bias_updates],
-            updates=[(self.__th_hid_biases, self.__th_hid_biases + th_bias_updates)]
+            outputs=[th_hidden_bias_delta, th_sparsity_delta, th_bias_updates]
+            #updates=[(self.__th_hid_biases, self.__th_hid_biases + th_bias_updates)]
         )
 
         return op
@@ -311,11 +316,13 @@ class BinaryVisibleNonPooledLayer(AbstractLayer):
         self.sampling_proc = RbmGibbsSampler(self)
 
 
-class BinaryVisiblePooledLayer(AbstractLayer):
+class AbstractPooledLayer(AbstractLayer):
+    __metaclass__ = ABCMeta
+
     def __init__(self, vis_unit_shape, hid_unit_shape, pre_set_vis_units=None, pre_set_hid_units=None,
                  learning_rate=0.01, target_sparsity=1., sparsity_learning_rate=0., pooling_ratio=2, pre_set_pooling_units=None):
         self.__pooling_ratio = pooling_ratio
-        super(BinaryVisiblePooledLayer, self).__init__(vis_unit_shape, hid_unit_shape, pre_set_vis_units,
+        super(AbstractPooledLayer, self).__init__(vis_unit_shape, hid_unit_shape, pre_set_vis_units,
                                                        pre_set_hid_units, learning_rate, target_sparsity,
                                                        sparsity_learning_rate)
 
@@ -341,11 +348,11 @@ class BinaryVisiblePooledLayer(AbstractLayer):
         self.get_hidden_units().set_connected_up(self.__pool_units)
         self.__pool_units.set_connected_down(self.get_hidden_units())
 
-    def init_inference_proc(self):
+    """def init_inference_proc(self):
         self.inference_proc = PooledInferenceBinaryVisible(self)
 
     def init_sampling_proc(self):
-        self.sampling_proc = RbmGibbsSampler(self)
+        self.sampling_proc = RbmGibbsSampler(self)"""
 
     def get_pool_ratio(self):
         return tuple((self.__pooling_ratio, self.__pooling_ratio))
@@ -354,19 +361,48 @@ class BinaryVisiblePooledLayer(AbstractLayer):
         return self.__pool_units
 
     def get_state_object(self):
-        state = super(BinaryVisiblePooledLayer, self).get_state_object()
+        state = super(AbstractPooledLayer, self).get_state_object()
         state[KEY_POOLING_RATIO] = self.__pooling_ratio
         return state
 
     def set_internal_state(self, learned_state):
-        super(BinaryVisiblePooledLayer, self).set_internal_state(learned_state)
+        super(AbstractPooledLayer, self).set_internal_state(learned_state)
         self.__pooling_ratio = learned_state[KEY_POOLING_RATIO]
 
     def infer_hid_given_vis(self, vis_input=None):
-        ret = super(BinaryVisiblePooledLayer, self).infer_hid_given_vis(vis_input)
+        ret = super(AbstractPooledLayer, self).infer_hid_given_vis(vis_input)
         ret.append(self.__pool_units.get_expectation())
         ret.append(self.__pool_units.get_value())
         return ret
+
+    def infer_vis_given_hid(self, hid_input=None):
+        if hid_input is not None:
+            if hid_input.shape == self.__pool_units.get_shape():
+                if self.__pool_units.get_connected_down().get_value() is not None:
+                    ret = super(AbstractPooledLayer, self).infer_vis_given_hid(self.__pool_units.get_connected_down().get_value())
+                else:
+                    raise Exception("Cant proceed - pooling layer is provided, but no value exists on the hidden layer - misuse of pooling layer")
+            else:
+                ret = super(AbstractPooledLayer, self).infer_vis_given_hid(hid_input)
+        else:
+            ret = super(AbstractPooledLayer, self).infer_vis_given_hid()
+        return ret
+
+
+class BinaryVisiblePooledLayer(AbstractPooledLayer):
+    def init_inference_proc(self):
+        self.inference_proc = PooledInferenceBinaryVisible(self)
+
+    def init_sampling_proc(self):
+        self.sampling_proc = RbmGibbsSampler(self)
+
+
+class GaussianVisiblePooledLayer(AbstractPooledLayer):
+    def init_inference_proc(self):
+        self.inference_proc = PooledInferenceGaussianVisible(self)
+
+    def init_sampling_proc(self):
+        self.sampling_proc = RbmGibbsSampler(self)
 
 
 class BinaryVisibleNonPooledPersistentSamplerChainLayer(BinaryVisibleNonPooledLayer):
