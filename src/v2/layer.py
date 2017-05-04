@@ -82,14 +82,14 @@ class AbstractLayer:
         hidden_bias_delta, sparsity_delta, bias_updates = self.__th_update_hidden_biases(pos_hid_sampled,
                                                                                          neg_hid_sampled)
 
-        print "Hid Bias Delta Max: {}|{}. Min: {}|{}, Ave: {}|{}".format(np.max(hidden_bias_delta),np.max(sparsity_delta),np.min(hidden_bias_delta),np.min(sparsity_delta), np.average(hidden_bias_delta),np.average(sparsity_delta))
+        #print "Hid Bias Delta Max: {}|{}. Min: {}|{}, Ave: {}|{}".format(np.max(hidden_bias_delta),np.max(sparsity_delta),np.min(hidden_bias_delta),np.min(sparsity_delta), np.average(hidden_bias_delta),np.average(sparsity_delta))
         if np.abs(np.average(bias_updates) > 100):
             raise Exception("Fishy Bias")
 
         self.__th_hid_biases.set_value(self.__th_hid_biases.get_value() + bias_updates)
 
         visible_bias_delta = self.__th_update_visible_bias(pos_vis, neg_vis_sampled)
-        print "Vis Bias Delta Max: {}. Min: {}, Ave: {}".format(np.max(visible_bias_delta),np.min(visible_bias_delta), np.average(visible_bias_delta))
+        #print "Vis Bias Delta Max: {}. Min: {}, Ave: {}".format(np.max(visible_bias_delta),np.min(visible_bias_delta), np.average(visible_bias_delta))
 
         recreation_squared_error = ((pos_vis - neg_vis_infer) ** 2).sum()
 

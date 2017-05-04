@@ -26,9 +26,10 @@ DIR_OUT_RESULTS = 'mnist_pooled/results/'
 class AbstractDbnGridSearchExperiment(object):
     __metaclass__ = ABCMeta
 
-    def __init__(self, pre_initialized_dbn):
+    def __init__(self, pre_initialized_dbn, result_output_dir):
         self.target_dbn = pre_initialized_dbn
         self.train_set, self.valid_set, self.test_set = self.load_data_sets()
+        self.result_output_dir = result_output_dir
 
     def run_grids(self, grids):
         results = {}
@@ -67,7 +68,7 @@ class AbstractDbnGridSearchExperiment(object):
         pass
 
     def get_dbn_output_dir(self, dbn):
-        out = DIR_OUT_RESULTS
+        out = self.result_output_dir
         for layer_idx in xrange(0, len(dbn.layers)):
             dbn_layer = dbn.layers[layer_idx]
             out += "layer_{}/lr_{}_st_{}_slr_{}/".format(layer_idx, dbn_layer.get_learning_rate(),
@@ -78,8 +79,8 @@ class AbstractDbnGridSearchExperiment(object):
 
 
 class MnistExperiment(AbstractDbnGridSearchExperiment):
-    def __init__(self, pre_initialized_dbn):
-        super(MnistExperiment, self).__init__(pre_initialized_dbn)
+    def __init__(self, pre_initialized_dbn, result_output_dir):
+        super(MnistExperiment, self).__init__(pre_initialized_dbn, result_output_dir)
 
     @staticmethod
     def get_data_loader():
@@ -97,8 +98,8 @@ class MnistExperiment(AbstractDbnGridSearchExperiment):
 
 
 class CaltechExperiment(AbstractDbnGridSearchExperiment):
-    def __init__(self, pre_initialized_dbn):
-        super(CaltechExperiment, self).__init__(pre_initialized_dbn)
+    def __init__(self, pre_initialized_dbn, result_output_dir):
+        super(CaltechExperiment, self).__init__(pre_initialized_dbn, result_output_dir)
 
     @staticmethod
     def get_data_loader():
@@ -114,19 +115,3 @@ class CaltechExperiment(AbstractDbnGridSearchExperiment):
 
     def get_stats_collector(self, results_output_dir):
         return MultiChannelPlottingDbnTrainingStatsCollector(results_output_dir)
-
-# starting_dbn = dbn.DbnFromStateBuilder.init_dbn(np.load('/home/dave/code/msc-crbm/test/v2/caltech/results/layer_0/lr_0.001_st_1.0_slr_0.0/dbn_state.npy').item())
-starting_dbn = dbn.BinaryVisibleDbn()
-mnistExp = MnistExperiment(starting_dbn)
-# caltechExp = CaltechExperiment(starting_dbn)
-
-grids_example = {
-    KEY_VIS_SHAPE: (1, 1, 28, 28),
-    KEY_HID_SHAPE: (1, 32, 20, 20),
-    KEY_POOL_RATIO: 2,
-    KEY_LEARNING_RATES: [0.01],
-    KEY_TARGET_SPARSITIES: [0.1],
-    KEY_SPARSITY_LEARNING_RATES: [0.1]
-}
-
-resultant2 = mnistExp.run_grids(grids_example)
