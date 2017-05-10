@@ -5,9 +5,8 @@ from abc import ABCMeta, abstractmethod
 import copy
 import cPickle
 import gzip
-import numpy as np
-from dbn import BinaryVisibleDbn, GaussianVisibleDbn
-from stats import MultiChannelPlottingDbnTrainingStatsCollector, MultiChannelPlottingPersistentChainDbnTrainingStatsCollector
+from stats import MultiChannelPlottingDbnTrainingStatsCollector, \
+    MultiChannelPlottingPersistentChainDbnTrainingStatsCollector
 import os
 import traceback
 
@@ -38,7 +37,8 @@ class AbstractDbnGridSearchExperiment(object):
                 for learning_rate in grids[KEY_LEARNING_RATES]:
                     dbn_copy = copy.deepcopy(self.target_dbn)
                     dbn_copy.add_layer(grids[KEY_VIS_SHAPE], grids[KEY_HID_SHAPE], learning_rate=learning_rate,
-                                       target_sparsity=target_sparsity, sparsity_learning_rate=sparsity_learning_rate, pooling_ratio=grids[KEY_POOL_RATIO])
+                                       target_sparsity=target_sparsity, sparsity_learning_rate=sparsity_learning_rate,
+                                       pooling_ratio=grids[KEY_POOL_RATIO])
 
                     trainer = DbnTrainer(dbn_copy, self.train_set, self.get_data_loader(),
                                          self.get_stats_collector(self.get_dbn_output_dir(dbn_copy)),
@@ -93,6 +93,13 @@ class MnistExperiment(AbstractDbnGridSearchExperiment):
         f.close()
         return train_set[0], valid_set[0], test_set[0]
 
+    @staticmethod
+    def load_data_sets_and_labels():
+        f = gzip.open(MNIST_DATA_SET_PATH, "rb")
+        train_set, valid_set, test_set = cPickle.load(f)
+        f.close()
+        return train_set, valid_set, test_set
+
     def get_stats_collector(self, results_output_dir):
         return MultiChannelPlottingDbnTrainingStatsCollector(results_output_dir)
 
@@ -123,3 +130,11 @@ class CaltechExperiment(AbstractDbnGridSearchExperiment):
 
     def get_stats_collector(self, results_output_dir):
         return MultiChannelPlottingDbnTrainingStatsCollector(results_output_dir)
+
+
+class CaltechExperimentPersistentGibbs(CaltechExperiment):
+    def __init__(self, pre_initialized_dbn, result_output_dir):
+        super(CaltechExperimentPersistentGibbs, self).__init__(pre_initialized_dbn, result_output_dir)
+
+    def get_stats_collector(self, results_output_dir):
+        return MultiChannelPlottingPersistentChainDbnTrainingStatsCollector(results_output_dir)

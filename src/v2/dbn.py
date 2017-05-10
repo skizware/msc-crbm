@@ -226,14 +226,18 @@ class GaussianVisibleDbnPersistentChainSampling(AbstractDbn):
                                                    sparsity_learning_rate=sparsity_learning_rate)
 
 
+class BinaryVisibleNonPooledDbn(object):
+    print "hellow"
+
 class DbnFromStateBuilder(object):
     @staticmethod
     def init_dbn(learned_state):
         dbn = learned_state[KEY_DBN_TYPE]()
         for layer_idx in learned_state[KEY_LAYERS]:
             layer_state = learned_state[KEY_LAYERS][layer_idx]
+            pooling_ratio = layer_state[KEY_POOLING_RATIO] if layer_state.has_key(KEY_POOLING_RATIO) else 0
             dbn.add_layer(layer_state[KEY_VIS_SHAPE], layer_state[KEY_HID_SHAPE], layer_state[KEY_LEARNING_RATE],
-                          layer_state[KEY_TARGET_SPARSITY], layer_state[KEY_SPARSITY_LEARNING_RATE], layer_state[KEY_POOLING_RATIO])
+                          layer_state[KEY_TARGET_SPARSITY], layer_state[KEY_SPARSITY_LEARNING_RATE], pooling_ratio)
             dbn.layers[layer_idx].set_internal_state(layer_state)
 
         return dbn

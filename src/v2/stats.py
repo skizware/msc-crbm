@@ -148,8 +148,8 @@ class MultiChannelPlottingPersistentChainDbnTrainingStatsCollector(MultiChannelP
         if sample_number % self.stats_collection_period is 0:
             self.__plot_and_save_chain_sample(sample_number, neg_vis_infer, 1)
 
-        recreation = dbn.infer_vis_given_hid(pos_hid_infer)[0]
-        neg_vis_infer = recreation
+        pos_hid_sample = dbn.infer_hid_given_vis(original_input)[1]
+        neg_vis_infer = dbn.infer_vis_given_hid(pos_hid_sample)[0]
 
         layer_rec_err_sqrd = ((original_input - neg_vis_infer) ** 2).sum()
 
