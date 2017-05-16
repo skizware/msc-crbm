@@ -69,6 +69,7 @@ class AbstractLayer:
         neg_vis_infer, neg_vis_sampled, neg_hid_infer, neg_hid_sampled = self.sample_from_model(pos_hid_sampled)
 
         weight_group_delta = self.__th_update_weights(pos_vis.swapaxes(0,1), pos_hid_infer.swapaxes(0,1), neg_vis_sampled.swapaxes(0,1), neg_hid_infer.swapaxes(0,1)).swapaxes(0,1)
+        weight_group_delta = weight_group_delta/input_batch.shape[0]
 
         if math.isnan(np.average(weight_group_delta)):
             raise Exception("Some shit went NaN")
@@ -81,6 +82,7 @@ class AbstractLayer:
         # weight_group_delta = self.__th_update_weights(pos_vis, pos_hid_infer, neg_vis_sampled, neg_hid_infer)
         hidden_bias_delta, sparsity_delta, bias_updates = self.__th_update_hidden_biases(pos_hid_sampled,
                                                                                          neg_hid_sampled)
+        hidden_bias_delta, sparsity_delta, bias_updates = hidden_bias_delta/input_batch.shape[0], sparsity_delta/input_batch.shape[0], bias_updates/input_batch.shape[0]
 
         #print "Hid Bias Delta Max: {}|{}. Min: {}|{}, Ave: {}|{}".format(np.max(hidden_bias_delta),np.max(sparsity_delta),np.min(hidden_bias_delta),np.min(sparsity_delta), np.average(hidden_bias_delta),np.average(sparsity_delta))
         if np.abs(np.average(bias_updates) > 100):
@@ -91,7 +93,9 @@ class AbstractLayer:
         visible_bias_delta = self.__th_update_visible_bias(pos_vis, neg_vis_sampled)
         #print "Vis Bias Delta Max: {}. Min: {}, Ave: {}".format(np.max(visible_bias_delta),np.min(visible_bias_delta), np.average(visible_bias_delta))
 
-        recreation_squared_error = ((pos_vis - neg_vis_infer) ** 2).sum()
+        self.__th_vis_bias.set_value(self.__th_vis_bias.get_value() + visible_bias_delta/input_batch.shape[0])
+
+        recreation_squared_error = ((pos_vis - neg_vis_infer) ** 2).sum() / input_batch.shape[0]
 
         return [weight_group_delta, hidden_bias_delta, sparsity_delta, bias_updates, visible_bias_delta, pos_hid_infer,
                 neg_vis_infer,
@@ -296,7 +300,7 @@ class AbstractLayer:
         op = th.function(
             inputs=[th_v0, th_v1],
             outputs=th_bias_update,
-            updates=[(self.__th_vis_bias, self.__th_vis_bias + th_bias_update)]
+            #updates=[(self.__th_vis_bias, self.__th_vis_bias + th_bias_update)]
         )
 
         return op

@@ -5,9 +5,8 @@ from skimage import io
 
 class MnistDataLoader(object):
     def load_data(self, img):
-        reshaped = img.copy().reshape((1, 1, 28, 28))
-        binarized = np.where(reshaped>0.8, 1, 0)
-        return binarized
+        reshaped = img.copy().reshape((img.shape[0], 1, 28, 28))
+        return reshaped
 
 
 class NormalizingCropOrPadToSizeImageLoader(MnistDataLoader):

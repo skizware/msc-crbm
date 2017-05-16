@@ -13,7 +13,7 @@ FILE_NAME_CHAIN_SAMPLE = 'sample_{}_from_chain.png'
 
 
 class MultiChannelPlottingDbnTrainingStatsCollector(object):
-    def __init__(self, dir_base_output, stats_collection_period=1000):
+    def __init__(self, dir_base_output, stats_collection_period=1):
         self.dir_base_output = dir_base_output
         self.stats_collection_period = stats_collection_period
         self.recreation_error_sqrd_collector = []
@@ -61,14 +61,18 @@ class MultiChannelPlottingDbnTrainingStatsCollector(object):
         num_channels = test_sample.shape[1]
         fig = plt.figure()
 
+        batch_factors = get_biggest_factors_of(test_sample.shape[0])
+        unblock_w = batch_factors[0] * test_sample.shape[2]
+        unblock_h = batch_factors[1] * test_sample.shape[3]
+
         for i in range(0, num_channels):
             orig = fig.add_subplot(num_channels, 2, i + 1)
             orig.set_title('Original - Channel {}'.format(i))
-            plt.imshow(test_sample[0][i], cmap='gray')
+            plt.imshow(unblockshaped(test_sample[:, i, :, :], unblock_w, unblock_h), cmap='gray')
 
             recreat = fig.add_subplot(num_channels, 2, i + 2)
             recreat.set_title("Recreation - Channel {}".format(i))
-            plt.imshow(recreation[0][i], cmap='gray')
+            plt.imshow(unblockshaped(recreation[:, i, :, :], unblock_w, unblock_h), cmap='gray')
 
         fig.tight_layout()
         fig.savefig(
@@ -151,7 +155,7 @@ class MultiChannelPlottingPersistentChainDbnTrainingStatsCollector(MultiChannelP
         pos_hid_sample = dbn.infer_hid_given_vis(original_input)[1]
         neg_vis_infer = dbn.infer_vis_given_hid(pos_hid_sample)[0]
 
-        layer_rec_err_sqrd = ((original_input - neg_vis_infer) ** 2).sum()
+        layer_rec_err_sqrd = ((original_input - neg_vis_infer) ** 2).sum() / original_input.shape[0]
 
         super(MultiChannelPlottingPersistentChainDbnTrainingStatsCollector, self).collect_stats(weight_group_delta,
                                                                                                 hidden_bias_delta,
@@ -170,10 +174,14 @@ class MultiChannelPlottingPersistentChainDbnTrainingStatsCollector(MultiChannelP
         num_channels = chain_sample.shape[1]
         fig = plt.figure()
 
+        batch_factors = get_biggest_factors_of(chain_sample.shape[0])
+        unblock_w = batch_factors[0] * chain_sample.shape[2]
+        unblock_h = batch_factors[1] * chain_sample.shape[3]
+
         for i in range(0, num_channels):
             orig = fig.add_subplot(num_channels, 1, i + 1)
             orig.set_title('Chain Sample - Channel {}'.format(i))
-            plt.imshow(chain_sample[0][i], cmap='gray')
+            plt.imshow(unblockshaped(chain_sample[:,i,:,:], unblock_w, unblock_h), cmap='gray')
 
         fig.tight_layout()
         fig.savefig(

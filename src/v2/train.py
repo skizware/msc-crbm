@@ -13,33 +13,37 @@ class DbnTrainer(object):
         self.stats_collector = stats_collector
         self.output_state_path = output_state_path
 
-    def train_dbn(self, layer_idx):
+    def train_dbn(self, layer_idx, num_epochs=1, batch_size=1, state_saves_per_epoch=1):
         t_start = datetime.datetime.now()
-        print('Layer {} - Train Start: {}'.format(layer_idx, t_start))
-        np.random.shuffle(self.data_set)
+        for epoch in xrange(0,num_epochs):
+            print('Layer {} Epoch {} - Train Start: {}'.format(layer_idx, epoch, t_start))
 
-        sample_index = 0
-        for data_ref in self.data_set:
-            train_input = self.data_loader.load_data(data_ref)
-            try:
-                stats = self.target_dbn.train_layer_on_batch(train_input)
-            except Exception, e:
-                print "ERROR!!!"
-                print e
-                print "Caused By:"
-                print data_ref
-                print traceback.format_exc()
+            np.random.shuffle(self.data_set)
 
-            if self.stats_collector is not None:
-                self.stats_collector.collect_stats(stats[0], stats[1], stats[2], stats[3], stats[4],
-                      stats[5], stats[6], stats[7], stats[8], train_input, sample_index, self.target_dbn, stats[9])
+            batches_per_epoch = self.data_set.shape[0] / batch_size
+            for batch in xrange(0, batches_per_epoch):
+                start_index = batch * batch_size
 
-            if sample_index % 5000 is 0:
-                self.save_state('_' + str(sample_index))
+                end_index = (batch + 1) * batch_size
+                mini_batch_refs = self.data_set[start_index:end_index]
+                mini_batch = self.data_loader.load_data(mini_batch_refs)
+                try:
+                    stats = self.target_dbn.train_layer_on_batch(mini_batch)
+                except Exception, e:
+                    print "ERROR!!!"
+                    print e
+                    print "Caused By:"
+                    print mini_batch_refs
+                    print traceback.format_exc()
 
-            sample_index += 1
+                if self.stats_collector is not None:
+                    self.stats_collector.collect_stats(stats[0], stats[1], stats[2], stats[3], stats[4],
+                          stats[5], stats[6], stats[7], stats[8], mini_batch, (epoch*batches_per_epoch) + batch, self.target_dbn, stats[9])
 
-        print('Layer {} - Train End - Elapsed time: {}'.format(layer_idx, datetime.datetime.now() - t_start))
+                if (batch+1) % int(batches_per_epoch/state_saves_per_epoch) is 0:
+                    self.save_state('_' + str((epoch*batches_per_epoch) + (batch+1)))
+
+            print('Layer {} Epoch {} - Train End - Elapsed time: {}'.format(layer_idx, epoch, datetime.datetime.now() - t_start))
 
     def save_state(self, substr=''):
         learned_state = self.target_dbn.get_learned_state()

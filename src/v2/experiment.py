@@ -19,6 +19,9 @@ KEY_LEARNING_RATES = 'learning_rates'
 KEY_TARGET_SPARSITIES = 'target_sparsities'
 KEY_SPARSITY_LEARNING_RATES = 'sparsity_learrning_rates'
 KEY_LAYER_TYPE = 'layer_type'
+KEY_NUM_EPOCHS = 'num_epochs'
+KEY_BATCH_SIZE = 'batch_size'
+
 DIR_OUT_RESULTS = 'mnist_pooled/results/'
 
 
@@ -44,7 +47,7 @@ class AbstractDbnGridSearchExperiment(object):
                                          self.get_stats_collector(self.get_dbn_output_dir(dbn_copy)),
                                          self.get_dbn_output_dir(dbn_copy))
                     try:
-                        trainer.train_dbn(len(dbn_copy.layers) - 1)
+                        trainer.train_dbn(len(dbn_copy.layers) - 1, grids[KEY_NUM_EPOCHS], grids[KEY_BATCH_SIZE])
                         trainer.save_state()
                         results["{}_{}_{}".format(learning_rate, target_sparsity, sparsity_learning_rate)] = dbn_copy
                     except Exception, e:
@@ -101,7 +104,7 @@ class MnistExperiment(AbstractDbnGridSearchExperiment):
         return train_set, valid_set, test_set
 
     def get_stats_collector(self, results_output_dir):
-        return MultiChannelPlottingDbnTrainingStatsCollector(results_output_dir)
+        return MultiChannelPlottingDbnTrainingStatsCollector(results_output_dir, 150)
 
 
 class MnistExperimentPersistentGibbs(MnistExperiment):
@@ -109,7 +112,7 @@ class MnistExperimentPersistentGibbs(MnistExperiment):
         super(MnistExperimentPersistentGibbs, self).__init__(pre_initialized_dbn, result_output_dir)
 
     def get_stats_collector(self, results_output_dir):
-        return MultiChannelPlottingPersistentChainDbnTrainingStatsCollector(results_output_dir)
+        return MultiChannelPlottingPersistentChainDbnTrainingStatsCollector(results_output_dir, 150)
 
 
 class CaltechExperiment(AbstractDbnGridSearchExperiment):
