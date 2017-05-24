@@ -277,7 +277,7 @@ class AbstractLayer:
             th_diff.sum(axis=(0, 2, 3)))
 
         th_sparsity_delta = self.__th_sparsity_learning_rate * (
-            self.__th_target_sparsity - (1. / self.__th_hid_normalization_factor) * th_h0_pre_sample.sum(axis=(0, 2, 3)))
+            self.__th_target_sparsity * th_h0_pre_sample.shape[0] - (1. / self.__th_hid_normalization_factor) * th_h0_pre_sample.sum(axis=(0, 2, 3)))
 
         th_bias_updates = th_hidden_bias_delta + th_sparsity_delta
 
