@@ -3,11 +3,12 @@ from experiment import MnistExperiment, MnistDataLoader
 import numpy as np
 from sklearn import linear_model
 
-DBN_TO_TEST = "/home/dave/code/msc-crbm/test/v2/mnist_batch_500_non_pooled_cd1/results/layer_0/lr_0.1_st_0.1_slr_0.1/dbn_state.npy"
+#DBN_TO_TEST = "/home/dave/code/msc-crbm/test/v2/mnist_batch_500_non_pooled_cd1/results/layer_0/lr_0.1_st_0.1_slr_0.1/dbn_state.npy"
+DBN_TO_TEST = "/home/dave/code/msc-crbm/test/v2/mnist_batch_64_non_pooled_cd1/results/layer_0/lr_0.1_st_0.04_slr_0.9/layer_1/lr_0.1_st_0.03_slr_0.9/dbn_state_31240.npy"
 loader = MnistDataLoader()
 
 stateJson = np.load(DBN_TO_TEST).item()
-stateJson['type'] = dbn.BinaryVisibleDbn
+#stateJson['type'] = dbn.BinaryVisibleDbn
 myDbn = dbn.DbnFromStateBuilder.init_dbn(stateJson)
 
 train_set_refs, valid_set_refs, test_set_refs = MnistExperiment.load_data_sets_and_labels()
@@ -20,10 +21,11 @@ for ref in test_set_refs[0]:
     data = ref.reshape(1,1,28,28)
 
     layer_0_expectation = myDbn.infer_hid_given_vis(data, end_layer_index_incl=0)[0]
-    #layer_1_expectation = myDbn.infer_hid_given_vis(data)[0]
-    #test_data = np.concatenate(
-        #(layer_0_expectation.reshape(layer_0_expectation.size), layer_1_expectation.reshape(layer_1_expectation.size)))
-    test_set.append(layer_0_expectation.reshape(layer_0_expectation.size))
+    layer_1_expectation = myDbn.infer_hid_given_vis(data)[0]
+    #test_set = np.append(layer_0_expectation.reshape((layer_0_expectation.shape[0], layer_0_expectation[0].size)),
+                                    #layer_1_expectation.reshape((layer_1_expectation.shape[0], layer_1_expectation[0].size)), axis=1)
+    #test_set.append(layer_1_expectation.reshape((layer_1_expectation.shape[0], layer_1_expectation[0].size)))
+    test_set.append(np.concatenate((layer_0_expectation.reshape(layer_0_expectation.size),layer_1_expectation.reshape(layer_1_expectation.size))))
 print "test set loaded"
 
 num_dataset_chunks = 50
@@ -38,10 +40,11 @@ for epoch in xrange(0, 200):
         end_index = (chunk + 1) * num_samples_per_chunk
         data_chunk = loader.load_data(train_set_refs[0][start_index:end_index])
         layer_0_expectation = myDbn.infer_hid_given_vis(data_chunk, end_layer_index_incl=0)[0]
-        train_data = layer_0_expectation.copy().reshape((layer_0_expectation.shape[0], layer_0_expectation[0].size))
-        #layer_1_expectation = myDbn.infer_hid_given_vis(data_chunk)[0]
-        #train_data = np.concatenate((layer_0_expectation.reshape(layer_0_expectation.size),
-         #                            layer_1_expectation.reshape(layer_1_expectation.size)))
+        #train_data = layer_0_expectation.copy().reshape((layer_0_expectation.shape[0], layer_0_expectation[0].size))
+        layer_1_expectation = myDbn.infer_hid_given_vis(data_chunk)[0]
+        #train_data = np.append(layer_0_expectation.reshape((layer_0_expectation.shape[0], layer_0_expectation[0].size)),
+                                    #layer_1_expectation.reshape((layer_1_expectation.shape[0], layer_1_expectation[0].size)), axis=1)
+        train_data = np.concatenate((layer_0_expectation.reshape(layer_0_expectation.shape[0],layer_0_expectation[0].size), layer_1_expectation.reshape((layer_1_expectation.shape[0], layer_1_expectation[0].size))), axis=1)
 
         #print "train set loaded {}".format(chunk)
 
