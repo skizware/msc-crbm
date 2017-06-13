@@ -1,17 +1,20 @@
-from data import MnistDataLoader, NormalizingCropOrPadToSizeImageLoader
+from data import MnistDataLoader, NormalizingCropOrPadToSizeImageLoader, NumpyArrayStftMagnitudeDataLoader
 import dbn
 from train import DbnTrainer
 from abc import ABCMeta, abstractmethod
 import copy
 import cPickle
 import gzip
+import numpy as np
 from stats import MultiChannelPlottingDbnTrainingStatsCollector, \
     MultiChannelPlottingPersistentChainDbnTrainingStatsCollector
+from subprocess import Popen, PIPE
 import os
 import traceback
 
 MNIST_DATA_SET_PATH = '/home/dave/data/mnist.pkl.gz'
 CALTEC_DATA_SET_PATH = '/home/dave/data/101_ObjectCategories/'
+TIMIT_DATA_SET_PATH = '/home/dave/code/msc-crbm/test/v2/TIMIT'
 KEY_VIS_SHAPE = 'vis_shape'
 KEY_HID_SHAPE = 'hid_shape'
 KEY_POOL_RATIO = 'pooling_ratio'
@@ -114,7 +117,7 @@ class MnistExperimentPersistentGibbs(MnistExperiment):
         super(MnistExperimentPersistentGibbs, self).__init__(pre_initialized_dbn, result_output_dir)
 
     def get_stats_collector(self, results_output_dir):
-        return MultiChannelPlottingPersistentChainDbnTrainingStatsCollector(results_output_dir, 150)
+        return MultiChannelPlottingPersistentChainDbnTrainingStatsCollector(results_output_dir, 780)
 
 
 class CaltechExperiment(AbstractDbnGridSearchExperiment):
@@ -143,3 +146,24 @@ class CaltechExperimentPersistentGibbs(CaltechExperiment):
 
     def get_stats_collector(self, results_output_dir):
         return MultiChannelPlottingPersistentChainDbnTrainingStatsCollector(results_output_dir)
+
+
+class TimitExperiment(AbstractDbnGridSearchExperiment):
+    def __init__(self, pre_initialized_dbn, result_output_dir):
+        super(TimitExperiment, self).__init__(pre_initialized_dbn, result_output_dir)
+
+    @staticmethod
+    def get_data_loader():
+        return NumpyArrayStftMagnitudeDataLoader()
+
+    @staticmethod
+    def load_data_sets():
+        proc = Popen(['find', TIMIT_DATA_SET_PATH, '-iname', '*.npy'], stdout=PIPE)
+        fileRefs = proc.stdout.read().split('\n')
+        fileRefs = fileRefs[:len(fileRefs) - 1]
+
+        return np.array(fileRefs), None, None
+
+    def get_stats_collector(self, results_output_dir):
+        return MultiChannelPlottingDbnTrainingStatsCollector(results_output_dir, 72)
+

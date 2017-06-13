@@ -3,6 +3,12 @@ import numpy as np
 from skimage import io
 
 
+def normalize_image(input_image):
+    input_image = input_image - input_image.mean()
+    input_image = input_image / input_image.std()
+    return input_image
+
+
 class MnistDataLoader(object):
     def load_data(self, img):
         reshaped = img.copy().reshape((img.shape[0], 1, 28, 28))
@@ -23,7 +29,7 @@ class NormalizingCropOrPadToSizeImageLoader(MnistDataLoader):
             grayscaleImage = readImage
         final_image = self.__crop_and_or_pad_to_size(grayscaleImage, self.target_height, self.target_width)
 
-        return np.array([[self.__normalize_image(final_image)]])
+        return np.array([[normalize_image(final_image)]])
 
     def __crop_and_or_pad_to_size(self, grayscaleImage, target_height, target_width):
         diff_w = target_width - grayscaleImage.shape[1]
@@ -55,7 +61,13 @@ class NormalizingCropOrPadToSizeImageLoader(MnistDataLoader):
     def __rgb2gray(self, rgb):
         return np.dot(rgb[..., :3], [0.299, 0.587, 0.114])
 
-    def __normalize_image(self, input_image):
-        input_image = input_image - input_image.mean()
-        input_image = input_image / input_image.std()
-        return input_image
+
+class NumpyArrayStftMagnitudeDataLoader(MnistDataLoader):
+    def load_data(self, batch_data_refs):
+        batch = []
+        for ref in batch_data_refs:
+            magAndPhaseArr = np.load(ref)
+            magArr = magAndPhaseArr[0]
+            batch.append([normalize_image(magArr)])
+
+        return np.array(batch)
