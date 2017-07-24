@@ -37,7 +37,7 @@ class MultiChannelPlottingDbnTrainingStatsCollector(object):
             self.__plot_and_save_recreation_squared_error(layer_rec_err_sqrd, self.recreation_error_sqrd_collector)
             self.__plot_and_save_hidden_bias_histograms(hidden_bias_delta, sample_number, sparsity_delta, 1, dbn)
             self.__plot_and_save_weight_histograms(sample_number, weight_group_delta, 1, dbn)
-            self.__plot_and_save_sample_recreation_comparison(sample_number, network_recreation, original_input, 1)
+            self.plot_and_save_sample_recreation_comparison(sample_number, network_recreation, original_input, 1)
             #TODO - fix filter visualization for pooled layers
             filters_by_channel, unblock_shape = self.visualize_filters(trained_layer_idx, dbn)
             self.__plot_and_save_learned_filters(sample_number, filters_by_channel, unblock_shape)
@@ -57,7 +57,7 @@ class MultiChannelPlottingDbnTrainingStatsCollector(object):
             self.dir_base_output + DIR_RECREATIONS + FILE_NAME_FILTER_VIS.format(index))
         plt.close(fig)
 
-    def __plot_and_save_sample_recreation_comparison(self, index, recreation, test_sample, current_epoch):
+    def plot_and_save_sample_recreation_comparison(self, index, recreation, test_sample, current_epoch):
         num_channels = test_sample.shape[1]
         fig = plt.figure()
 
@@ -187,6 +187,19 @@ class MultiChannelPlottingPersistentChainDbnTrainingStatsCollector(MultiChannelP
         fig.savefig(
             self.dir_base_output + DIR_RECREATIONS + FILE_NAME_CHAIN_SAMPLE.format(index))
         plt.close(fig)
+
+
+class MultiChannelPlottingDbnTrainingPCAReconstructingStatsCollector(MultiChannelPlottingDbnTrainingStatsCollector):
+    def __init__(self, dir_base_output, pca_model, stats_collection_period=1):
+        super(MultiChannelPlottingDbnTrainingPCAReconstructingStatsCollector, self).__init__(dir_base_output,
+                                                                                             stats_collection_period)
+        self.pca_model = pca_model
+
+    def plot_and_save_sample_recreation_comparison(self, index, recreation, test_sample, current_epoch):
+        test_sample_inverse_transform = self.pca_model.inverse_transform(test_sample)
+        recreation_inverse_transform = self.pca_model.inverse_transform(recreation)
+        super(MultiChannelPlottingDbnTrainingPCAReconstructingStatsCollector,
+              self).plot_and_save_sample_recreation_comparison(index, recreation_inverse_transform, test_sample_inverse_transform, current_epoch)
 
 
 def get_biggest_factors_of(size):

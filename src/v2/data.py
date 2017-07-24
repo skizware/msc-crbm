@@ -63,11 +63,17 @@ class NormalizingCropOrPadToSizeImageLoader(MnistDataLoader):
 
 
 class NumpyArrayStftMagnitudeDataLoader(MnistDataLoader):
+
+    def __init__(self, pca_model):
+        super(NumpyArrayStftMagnitudeDataLoader, self).__init__()
+        self.pca_freq = pca_model
+
     def load_data(self, batch_data_refs):
         batch = []
         for ref in batch_data_refs:
             magAndPhaseArr = np.load(ref)
-            magArr = magAndPhaseArr[0]
-            batch.append([normalize_image(magArr)])
+            magArr = magAndPhaseArr[0].swapaxes(0, 1)
+            magArrReduced = self.pca_freq.transform(magArr)
+            batch.append([magArrReduced])
 
         return np.array(batch)

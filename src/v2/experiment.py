@@ -7,14 +7,15 @@ import cPickle
 import gzip
 import numpy as np
 from stats import MultiChannelPlottingDbnTrainingStatsCollector, \
-    MultiChannelPlottingPersistentChainDbnTrainingStatsCollector
+    MultiChannelPlottingPersistentChainDbnTrainingStatsCollector, \
+    MultiChannelPlottingDbnTrainingPCAReconstructingStatsCollector
 from subprocess import Popen, PIPE
 import os
 import traceback
 
 MNIST_DATA_SET_PATH = '/home/dave/data/mnist.pkl.gz'
 CALTEC_DATA_SET_PATH = '/home/dave/data/101_ObjectCategories/'
-TIMIT_DATA_SET_PATH = '/home/dave/code/msc-crbm/test/v2/TIMIT'
+TIMIT_DATA_SET_PATH = '/home/dave/code/msc-crbm/test/v2/TIMIT/pre-processed'
 KEY_VIS_SHAPE = 'vis_shape'
 KEY_HID_SHAPE = 'hid_shape'
 KEY_POOL_RATIO = 'pooling_ratio'
@@ -47,6 +48,8 @@ class AbstractDbnGridSearchExperiment(object):
                         dbn_copy.add_layer(grids[KEY_VIS_SHAPE], grids[KEY_HID_SHAPE], learning_rate=learning_rate,
                                            target_sparsity=target_sparsity, sparsity_learning_rate=sparsity_learning_rate,
                                            pooling_ratio=grids[KEY_POOL_RATIO])
+                    else:
+                        dbn_copy.layers[-1].set_learning_rate(learning_rate)
 
                     trainer = DbnTrainer(dbn_copy, self.train_set, self.get_data_loader(),
                                          self.get_stats_collector(self.get_dbn_output_dir(dbn_copy)),
@@ -67,7 +70,6 @@ class AbstractDbnGridSearchExperiment(object):
     def load_data_sets():
         pass
 
-    @staticmethod
     def get_data_loader(self):
         pass
 
@@ -90,8 +92,7 @@ class MnistExperiment(AbstractDbnGridSearchExperiment):
     def __init__(self, pre_initialized_dbn, result_output_dir):
         super(MnistExperiment, self).__init__(pre_initialized_dbn, result_output_dir)
 
-    @staticmethod
-    def get_data_loader():
+    def get_data_loader(self):
         return MnistDataLoader()
 
     @staticmethod
@@ -124,8 +125,7 @@ class CaltechExperiment(AbstractDbnGridSearchExperiment):
     def __init__(self, pre_initialized_dbn, result_output_dir):
         super(CaltechExperiment, self).__init__(pre_initialized_dbn, result_output_dir)
 
-    @staticmethod
-    def get_data_loader():
+    def get_data_loader(self):
         return NormalizingCropOrPadToSizeImageLoader(300, 200, grayscale=True)
 
     @staticmethod
@@ -149,12 +149,12 @@ class CaltechExperimentPersistentGibbs(CaltechExperiment):
 
 
 class TimitExperiment(AbstractDbnGridSearchExperiment):
-    def __init__(self, pre_initialized_dbn, result_output_dir):
+    def __init__(self, pre_initialized_dbn, result_output_dir, pca_model):
         super(TimitExperiment, self).__init__(pre_initialized_dbn, result_output_dir)
+        self.pca_model = pca_model
 
-    @staticmethod
-    def get_data_loader():
-        return NumpyArrayStftMagnitudeDataLoader()
+    def get_data_loader(self):
+        return NumpyArrayStftMagnitudeDataLoader(pca_model=self.pca_model)
 
     @staticmethod
     def load_data_sets():
@@ -165,5 +165,6 @@ class TimitExperiment(AbstractDbnGridSearchExperiment):
         return np.array(fileRefs), None, None
 
     def get_stats_collector(self, results_output_dir):
-        return MultiChannelPlottingDbnTrainingStatsCollector(results_output_dir, 72)
+        #return MultiChannelPlottingDbnTrainingPCAReconstructingStatsCollector(results_output_dir, self.pca_model, 50)
+        return MultiChannelPlottingDbnTrainingStatsCollector(results_output_dir, 100)
 
