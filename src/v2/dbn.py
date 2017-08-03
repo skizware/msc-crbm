@@ -1,4 +1,5 @@
 from abc import ABCMeta, abstractmethod
+import numpy as np
 from layer import BinaryVisibleNonPooledLayer, GaussianVisibleNonPooledLayer, BinaryVisiblePooledLayer, \
     GaussianVisiblePooledLayer, BinaryVisibleNonPooledPersistentSamplerChainLayer, BinaryVisiblePooledPersistentSamplerChainLayer,\
     GaussianVisibleNonPooledPersistentSamplerChainLayer, GaussianVisiblePooledPersistentSamplerChainLayer
@@ -63,6 +64,25 @@ class AbstractDbn(object):
         layer = self.create_next_layer(new_layer_input_shape, new_layer_output_shape, learning_rate, target_sparsity,
                                        sparsity_learning_rate, pooling_ratio)
         self.layers.append(layer)
+
+    def get_features(self, dbn_input, layers_to_use=None):
+        features = None
+        if layers_to_use is None:
+            layers_to_use = range(0, len(self.layers))
+
+        top_layer_to_use = max(layers_to_use)
+        layer_in = dbn_input
+        for layer_idx in xrange(0, top_layer_to_use+1):
+            layer_in = self.layers[layer_idx].infer_hid_given_vis(layer_in)
+            if(layer_idx in layers_to_use):
+                layer_shape = layer_in[0].shape
+                if features is None:
+                    features = layer_in[0].reshape(layer_shape[0], layer_shape[1] * layer_shape[2] * layer_shape[3])
+                else:
+                    np.concatenate((features, layer_in[0].reshape(layer_shape[0], layer_shape[1] * layer_shape[2] * layer_shape[3])), axis=1)
+            layer_in = layer_in[1]
+
+        return np.asarray(features)
 
     @abstractmethod
     def create_next_layer(self, new_layer_input_shape, new_layer_output_shape, learning_rate, target_sparsity,
