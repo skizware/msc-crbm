@@ -7,3 +7,6 @@
 *.txt
 test/data
 *.npy
+*.zip
+*.pkl
+*.tar.gz

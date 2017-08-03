@@ -1,6 +1,7 @@
 import math
 import numpy as np
 from skimage import io
+from sklearn.preprocessing import scale
 
 
 def normalize_image(input_image):
@@ -63,17 +64,24 @@ class NormalizingCropOrPadToSizeImageLoader(MnistDataLoader):
 
 
 class NumpyArrayStftMagnitudeDataLoader(MnistDataLoader):
-
-    def __init__(self, pca_model):
+    def __init__(self, pca_model, scale_features=False):
         super(NumpyArrayStftMagnitudeDataLoader, self).__init__()
         self.pca_freq = pca_model
+        self.scale_features = scale_features
 
     def load_data(self, batch_data_refs):
         batch = []
         for ref in batch_data_refs:
             magAndPhaseArr = np.load(ref)
-            magArr = magAndPhaseArr[0].swapaxes(0, 1)
-            magArrReduced = self.pca_freq.transform(magArr)
-            batch.append([magArrReduced])
+            magArr = magAndPhaseArr[0].T
+            batch.append(magArr)
 
-        return np.array(batch)
+        batch = np.asarray(batch)
+        batch_shape = batch.shape
+        batch = batch.reshape((batch_shape[0]*batch_shape[1], batch_shape[2]))
+        if self.scale_features:
+            batch = scale(batch)
+        batch = self.pca_freq.transform(batch)
+        batch = batch.reshape((batch_shape[0], 1, batch_shape[1], self.pca_freq.components_.shape[0]))
+
+        return batch.swapaxes(1, 3).swapaxes(2, 3)

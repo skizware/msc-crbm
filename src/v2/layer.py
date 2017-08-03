@@ -7,6 +7,7 @@ import theano as th
 from theano import tensor as T
 from theano.tensor.shared_randomstreams import RandomStreams
 import math
+from decimal import Decimal
 
 KEY_POOLING_RATIO = 'pooling_ratio'
 
@@ -48,8 +49,9 @@ class AbstractLayer:
         self.__sparsity_learning_rate = sparsity_learning_rate
 
         init_weight_variance = 1. / 100
-        self.__weight_matrix = np.array(self.__rng.normal(  # initialize W uniformly
-            scale=0.01,
+        self.__weight_matrix = np.array(self.__rng.uniform(  # initialize W uniformly
+            low=-init_weight_variance,
+            high=init_weight_variance,
             size=(self.__get_weight_matrix_shape(vis_unit_shape, hid_unit_shape))))
 
         self.__th_setup()
@@ -76,23 +78,27 @@ class AbstractLayer:
         if np.abs(np.average(weight_group_delta)) > 100:
             raise Exception("Hmm - fishy...")
 
-        print "Weight Delta Max: {}. Min: {}, Ave: {}".format(np.max(weight_group_delta),np.min(weight_group_delta), np.average(weight_group_delta))
+        #print "Weight Delta Max: {}. Min: {}, Ave: {}".format(np.max(weight_group_delta),np.min(weight_group_delta), np.average(weight_group_delta))
+        print "Weight norm ratio: {}".format(format_as_sci_not(np.linalg.norm(weight_group_delta) / np.linalg.norm(self.get_weight_matrix().get_value())))
         self.__th_weight_matrix.set_value(self.__th_weight_matrix.get_value() + weight_group_delta)
         # weight_group_delta = self.__th_update_weights(pos_vis, pos_hid_infer, neg_vis_sampled, neg_hid_infer)
         hidden_bias_delta, sparsity_delta, bias_updates = self.__th_update_hidden_biases(pos_hid_sampled,
                                                                                          neg_hid_sampled)
         hidden_bias_delta, sparsity_delta, bias_updates = hidden_bias_delta/input_batch.shape[0], sparsity_delta/input_batch.shape[0], bias_updates/input_batch.shape[0]
 
-        print "Hid Bias Delta Max: {}|{}. Min: {}|{}, Ave: {}|{}".format(np.max(hidden_bias_delta),np.max(sparsity_delta),np.min(hidden_bias_delta),np.min(sparsity_delta), np.average(hidden_bias_delta),np.average(sparsity_delta))
+        #print "Hid Bias Delta Max: {}|{}. Min: {}|{}, Ave: {}|{}".format(np.max(hidden_bias_delta),np.max(sparsity_delta),np.min(hidden_bias_delta),np.min(sparsity_delta), np.average(hidden_bias_delta),np.average(sparsity_delta))
+        print "Hid Bias Norm Ratio: {}, Sparsity Norm Ratio: {}".format(format_as_sci_not(np.linalg.norm(hidden_bias_delta) / np.linalg.norm(self.get_hidden_biases().get_value())), format_as_sci_not(np.linalg.norm(sparsity_delta) / np.linalg.norm(self.get_hidden_biases().get_value())))
         if np.abs(np.average(bias_updates) > 100):
             raise Exception("Fishy Bias")
 
         self.__th_hid_biases.set_value(self.__th_hid_biases.get_value() + bias_updates)
 
         visible_bias_delta = self.__th_update_visible_bias(pos_vis, neg_vis_sampled)
-        print "Vis Bias Delta Max: {}. Min: {}, Ave: {}".format(np.max(visible_bias_delta),np.min(visible_bias_delta), np.average(visible_bias_delta))
+        visible_bias_delta = visible_bias_delta/input_batch.shape[0]
+        #print "Vis Bias Delta Max: {}. Min: {}, Ave: {}".format(np.max(visible_bias_delta),np.min(visible_bias_delta), np.average(visible_bias_delta))
+        print "Vis Bias Norm Ratio: {}".format(format_as_sci_not(np.linalg.norm(visible_bias_delta) / np.linalg.norm(self.get_visible_bias().get_value())))
 
-        self.__th_vis_bias.set_value(self.__th_vis_bias.get_value() + visible_bias_delta/input_batch.shape[0])
+        self.__th_vis_bias.set_value(self.__th_vis_bias.get_value() + visible_bias_delta)
 
         recreation_squared_error = ((pos_vis - neg_vis_infer) ** 2).sum() / input_batch.shape[0]
 
@@ -440,3 +446,7 @@ class GaussianVisibleNonPooledPersistentSamplerChainLayer(GaussianVisibleNonPool
 class GaussianVisiblePooledPersistentSamplerChainLayer(GaussianVisiblePooledLayer):
     def init_sampling_proc(self):
         self.sampling_proc = RbmPersistentGibbsSampler(self)
+
+
+def format_as_sci_not(val):
+    return '%.2E' % Decimal(val)

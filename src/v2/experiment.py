@@ -149,12 +149,13 @@ class CaltechExperimentPersistentGibbs(CaltechExperiment):
 
 
 class TimitExperiment(AbstractDbnGridSearchExperiment):
-    def __init__(self, pre_initialized_dbn, result_output_dir, pca_model):
+    def __init__(self, pre_initialized_dbn, result_output_dir, pca_model, scale_features=False):
         super(TimitExperiment, self).__init__(pre_initialized_dbn, result_output_dir)
         self.pca_model = pca_model
+        self.scale_features = scale_features
 
     def get_data_loader(self):
-        return NumpyArrayStftMagnitudeDataLoader(pca_model=self.pca_model)
+        return NumpyArrayStftMagnitudeDataLoader(pca_model=self.pca_model, scale_features=self.scale_features)
 
     @staticmethod
     def load_data_sets():
@@ -166,5 +167,5 @@ class TimitExperiment(AbstractDbnGridSearchExperiment):
 
     def get_stats_collector(self, results_output_dir):
         #return MultiChannelPlottingDbnTrainingPCAReconstructingStatsCollector(results_output_dir, self.pca_model, 50)
-        return MultiChannelPlottingDbnTrainingStatsCollector(results_output_dir, 100)
+        return MultiChannelPlottingDbnTrainingStatsCollector(results_output_dir, 400)
 
