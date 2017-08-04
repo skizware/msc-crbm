@@ -15,6 +15,9 @@ class MnistDataLoader(object):
         reshaped = img.copy().reshape((img.shape[0], 1, 28, 28))
         return reshaped
 
+    def load_labels(self, label_ref):
+        return label_ref
+
 
 class NormalizingCropOrPadToSizeImageLoader(MnistDataLoader):
     def __init__(self, target_width, target_height, grayscale=True):
@@ -64,24 +67,48 @@ class NormalizingCropOrPadToSizeImageLoader(MnistDataLoader):
 
 
 class NumpyArrayStftMagnitudeDataLoader(MnistDataLoader):
-    def __init__(self, pca_model, scale_features=False):
+    def __init__(self, pca_model, label_loader, scale_features=False):
         super(NumpyArrayStftMagnitudeDataLoader, self).__init__()
         self.pca_freq = pca_model
         self.scale_features = scale_features
+        self.label_loader = label_loader
 
     def load_data(self, batch_data_refs):
         batch = []
         for ref in batch_data_refs:
             magAndPhaseArr = np.load(ref)
             magArr = magAndPhaseArr[0].T
-            batch.append(magArr)
+            if self.scale_features:
+                magArr = scale(magArr)
+            magArr = np.asarray([self.pca_freq.transform(magArr).T])
+            batch.append(magArr.swapaxes(0, 1))
 
-        batch = np.asarray(batch)
+        """batch = np.asarray(batch)
         batch_shape = batch.shape
-        batch = batch.reshape((batch_shape[0]*batch_shape[1], batch_shape[2]))
+        batch = batch.reshape((batch_shape[0] * batch_shape[1], batch_shape[2]))
         if self.scale_features:
             batch = scale(batch)
         batch = self.pca_freq.transform(batch)
-        batch = batch.reshape((batch_shape[0], 1, batch_shape[1], self.pca_freq.components_.shape[0]))
+        batch = batch.reshape((batch_shape[0], 1, batch_shape[1], self.pca_freq.components_.shape[0]))"""
 
-        return batch.swapaxes(1, 3).swapaxes(2, 3)
+        return batch
+
+    def load_labels(self, batch_refs):
+        labels = []
+        for label_ref in batch_refs:
+            labels.append(self.label_loader.load_label(label_ref))
+        return labels
+
+
+class LabelResolver(object):
+    def load_label(self, label_ref):
+        raise NotImplementedError("Use child class")
+
+
+class TimitGenderLabelResolver(LabelResolver):
+    TIMIT_LABEL_MALE = 0
+    TIMIT_LABEL_FEMALE = 1
+
+    def load_label(self, label_ref):
+        return self.TIMIT_LABEL_MALE if label_ref[label_ref.rfind('/DR') + 5:label_ref.rfind(
+            '/DR') + 6] is 'M' else self.TIMIT_LABEL_FEMALE
