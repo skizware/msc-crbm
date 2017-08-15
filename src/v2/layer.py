@@ -49,9 +49,9 @@ class AbstractLayer:
         self.__sparsity_learning_rate = sparsity_learning_rate
 
         init_weight_variance = 1. / 100
-        self.__weight_matrix = np.array(self.__rng.uniform(  # initialize W uniformly
-            low=-init_weight_variance,
-            high=init_weight_variance,
+        self.__weight_matrix = np.array(self.__rng.normal(
+            loc=0,
+            scale=init_weight_variance,
             size=(self.__get_weight_matrix_shape(vis_unit_shape, hid_unit_shape))))
 
         self.__th_setup()
@@ -329,7 +329,7 @@ class AbstractPooledLayer(AbstractLayer):
     __metaclass__ = ABCMeta
 
     def __init__(self, vis_unit_shape, hid_unit_shape, pre_set_vis_units=None, pre_set_hid_units=None,
-                 learning_rate=0.01, target_sparsity=1., sparsity_learning_rate=0., pooling_ratio=2, pre_set_pooling_units=None):
+                 learning_rate=0.01, target_sparsity=1., sparsity_learning_rate=0., pooling_ratio=(2,2), pre_set_pooling_units=None):
         self.__pooling_ratio = pooling_ratio
         super(AbstractPooledLayer, self).__init__(vis_unit_shape, hid_unit_shape, pre_set_vis_units,
                                                        pre_set_hid_units, learning_rate, target_sparsity,
@@ -339,12 +339,12 @@ class AbstractPooledLayer(AbstractLayer):
 
     def __init_pool_units(self, hid_unit_shape, pre_set_pooling_units):
         if pre_set_pooling_units is None:
-            assert hid_unit_shape[2] % self.__pooling_ratio == 0 & \
-                   hid_unit_shape[3] % self.__pooling_ratio == 0, \
+            assert hid_unit_shape[2] % self.__pooling_ratio[0] == 0 & \
+                   hid_unit_shape[3] % self.__pooling_ratio[1] == 0, \
                    "Pooling layer shape not compatible with pooling ratio"
 
-            pooling_layer_shape = (hid_unit_shape[0], hid_unit_shape[1], hid_unit_shape[2] / self.__pooling_ratio,
-                                   hid_unit_shape[3] / self.__pooling_ratio)
+            pooling_layer_shape = (hid_unit_shape[0], hid_unit_shape[1], hid_unit_shape[2] / self.__pooling_ratio[0],
+                                   hid_unit_shape[3] / self.__pooling_ratio[1])
             self.__pool_units = LayerUnits(pooling_layer_shape)
         else:
             assert hid_unit_shape[2] % pre_set_pooling_units.get_shape()[2] == 0 & \
@@ -364,7 +364,7 @@ class AbstractPooledLayer(AbstractLayer):
         self.sampling_proc = RbmGibbsSampler(self)"""
 
     def get_pool_ratio(self):
-        return tuple((self.__pooling_ratio, self.__pooling_ratio))
+        return self.__pooling_ratio
 
     def get_pool_units(self):
         return self.__pool_units

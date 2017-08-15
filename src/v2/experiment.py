@@ -50,6 +50,8 @@ class AbstractDbnGridSearchExperiment(object):
                                            pooling_ratio=grids[KEY_POOL_RATIO])
                     else:
                         dbn_copy.layers[-1].set_learning_rate(learning_rate)
+                        dbn_copy.layers[-1].set_target_sparsity(target_sparsity)
+                        dbn_copy.layers[-1].set_sparsity_learning_rate(sparsity_learning_rate)
 
                     trainer = DbnTrainer(dbn_copy, self.train_set, self.get_data_loader(),
                                          self.get_stats_collector(self.get_dbn_output_dir(dbn_copy)),
@@ -149,7 +151,7 @@ class CaltechExperimentPersistentGibbs(CaltechExperiment):
 
 
 class TimitExperiment(AbstractDbnGridSearchExperiment):
-    def __init__(self, pre_initialized_dbn, result_output_dir, pca_model, scale_features=False):
+    def __init__(self, pre_initialized_dbn, result_output_dir, pca_model, scale_features=None):
         super(TimitExperiment, self).__init__(pre_initialized_dbn, result_output_dir)
         self.pca_model = pca_model
         self.scale_features = scale_features
@@ -166,6 +168,6 @@ class TimitExperiment(AbstractDbnGridSearchExperiment):
         return np.array(fileRefs), None, None
 
     def get_stats_collector(self, results_output_dir):
-        #return MultiChannelPlottingDbnTrainingPCAReconstructingStatsCollector(results_output_dir, self.pca_model, 50)
-        return MultiChannelPlottingDbnTrainingStatsCollector(results_output_dir, 400)
+        return MultiChannelPlottingDbnTrainingPCAReconstructingStatsCollector(results_output_dir, self.pca_model, 400)
+        #return MultiChannelPlottingDbnTrainingStatsCollector(results_output_dir, 400)
 

@@ -1,6 +1,7 @@
 import dbn
 from experiment import TimitExperiment
 from sklearn.linear_model import SGDClassifier
+from sklearn.utils import shuffle
 from math import ceil, floor
 import numpy as np
 
@@ -25,7 +26,7 @@ class SGDClassificationDbnVerifier(object):
             print "EPOCH {}".format(epoch)
             self.__train_classifier(dbn_layers_to_use)
             resulting_points.append(self.__test_classifier(dbn_layers_to_use))
-            np.random.shuffle(self.train_set_refs)
+            shuffle(self.train_set_refs[0], self.train_set_refs[1])
 
         return resulting_points
 
@@ -43,6 +44,7 @@ class SGDClassificationDbnVerifier(object):
     def __train_model_on_batch(self, dbn_layers_to_use, raw_batch_data, raw_batch_labels):
         labeled_data_points = self.__labeled_data_points_from_raw_batch(raw_batch_data, raw_batch_labels)
         batch_data, batch_labels = self.__chunk_batch_data_and_labels(labeled_data_points)
+        shuffle(batch_data, batch_labels)
         batch_features = self.dbn_to_verify.get_features(np.asarray(batch_data), dbn_layers_to_use)
         self.linear_model.partial_fit(batch_features, np.asarray(batch_labels), self.class_labels)
 

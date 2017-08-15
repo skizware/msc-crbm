@@ -40,9 +40,9 @@ class MultiChannelPlottingDbnTrainingStatsCollector(object):
             self.plot_and_save_sample_recreation_comparison(sample_number, network_recreation, original_input, 1)
             #TODO - fix filter visualization for pooled layers
             filters_by_channel, unblock_shape = self.visualize_filters(trained_layer_idx, dbn)
-            self.__plot_and_save_learned_filters(sample_number, filters_by_channel, unblock_shape)
+            self.plot_and_save_learned_filters(sample_number, filters_by_channel, unblock_shape)
 
-    def __plot_and_save_learned_filters(self, index, filters_by_channel, unblock_shape, cmap_val='gray'):
+    def plot_and_save_learned_filters(self, index, filters_by_channel, unblock_shape, cmap_val='gray'):
         num_channels = filters_by_channel.shape[1]
         fig = plt.figure()
         for i in xrange(0, num_channels):
@@ -68,11 +68,11 @@ class MultiChannelPlottingDbnTrainingStatsCollector(object):
         for i in range(0, num_channels):
             orig = fig.add_subplot(num_channels, 2, i + 1)
             orig.set_title('Original - Channel {}'.format(i))
-            plt.imshow(unblockshaped(test_sample[:, i, :, :], unblock_w, unblock_h), cmap='gray')
+            plt.imshow(unblockshaped(test_sample[:, i, :, :], unblock_w, unblock_h), origin='flip')
 
             recreat = fig.add_subplot(num_channels, 2, i + 2)
             recreat.set_title("Recreation - Channel {}".format(i))
-            plt.imshow(unblockshaped(recreation[:, i, :, :], unblock_w, unblock_h), cmap='gray')
+            plt.imshow(unblockshaped(recreation[:, i, :, :], unblock_w, unblock_h), origin='flip')
 
         fig.tight_layout()
         fig.savefig(
@@ -195,11 +195,45 @@ class MultiChannelPlottingDbnTrainingPCAReconstructingStatsCollector(MultiChanne
                                                                                              stats_collection_period)
         self.pca_model = pca_model
 
+    def plot_and_save_learned_filters(self, index, filters_by_channel, unblock_shape, cmap_val='gray'):
+        stitched_filters = []
+        for filter in filters_by_channel:
+            if self.pca_model is not None:
+                stitched_filters.append(list(self.pca_model.inverse_transform(filter[:,0,:].T).T))
+            else:
+                stitched_filters.append(list(filter[:,0,:]))
+
+        stitched_filters = np.asarray(stitched_filters)
+        stitched_filters = unblockshaped(stitched_filters, stitched_filters.shape[1], stitched_filters.shape[0]*stitched_filters.shape[2])
+        fig = plt.figure()
+        filters_fig = fig.add_subplot(1, 1, 1)
+        filters_fig.set_title("Filters")
+        plt.imshow(stitched_filters, origin='flip')
+        fig.tight_layout()
+        fig.savefig(
+            self.dir_base_output + DIR_RECREATIONS + FILE_NAME_FILTER_VIS.format(index))
+        plt.close(fig)
+
     def plot_and_save_sample_recreation_comparison(self, index, recreation, test_sample, current_epoch):
-        test_sample_inverse_transform = self.pca_model.inverse_transform(test_sample)
-        recreation_inverse_transform = self.pca_model.inverse_transform(recreation)
+        if self.pca_model is not None:
+            test_sample_shape = test_sample.shape
+            test_sample = self.pca_model.inverse_transform(test_sample[:, :, 0, :].swapaxes(1, 2).reshape(
+                (test_sample_shape[0] * test_sample_shape[3], test_sample_shape[1])))
+            test_sample = test_sample.reshape(
+                (test_sample_shape[0], test_sample_shape[3], 1, self.pca_model.components_.shape[1])).swapaxes(1, 3).swapaxes(1,2)
+
+            recreation_shape = recreation.shape
+            recreation = self.pca_model.inverse_transform(recreation[:, :, 0, :].swapaxes(1, 2).reshape(
+                (recreation_shape[0] * recreation_shape[3], recreation_shape[1])))
+            recreation = recreation.reshape(
+                (recreation_shape[0], recreation_shape[3], 1, self.pca_model.components_.shape[1])).swapaxes(1, 3).swapaxes(1,2)
+        else:
+            test_sample = test_sample.swapaxes(1, 2)
+            recreation = recreation.swapaxes(1, 2)
+
+
         super(MultiChannelPlottingDbnTrainingPCAReconstructingStatsCollector,
-              self).plot_and_save_sample_recreation_comparison(index, recreation_inverse_transform, test_sample_inverse_transform, current_epoch)
+              self).plot_and_save_sample_recreation_comparison(index, recreation, test_sample, current_epoch)
 
 
 def get_biggest_factors_of(size):

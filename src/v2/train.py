@@ -27,6 +27,8 @@ class DbnTrainer(object):
                 end_index = (batch + 1) * batch_size
                 mini_batch_refs = self.data_set[start_index:end_index]
                 mini_batch = self.data_loader.load_data(mini_batch_refs)
+                if type(mini_batch) is list:
+                    mini_batch = np.asarray(mini_batch)
                 try:
                     stats = self.target_dbn.train_layer_on_batch(mini_batch)
                 except Exception, e:

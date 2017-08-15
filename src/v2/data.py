@@ -67,21 +67,26 @@ class NormalizingCropOrPadToSizeImageLoader(MnistDataLoader):
 
 
 class NumpyArrayStftMagnitudeDataLoader(MnistDataLoader):
-    def __init__(self, pca_model, label_loader, scale_features=False):
+    def __init__(self, pca_model, label_loader=None, scale_features=None):
         super(NumpyArrayStftMagnitudeDataLoader, self).__init__()
         self.pca_freq = pca_model
         self.scale_features = scale_features
-        self.label_loader = label_loader
+        self.label_loader = label_loader if label_loader is not None else TimitSpeakerLabelResolver()
 
     def load_data(self, batch_data_refs):
         batch = []
         for ref in batch_data_refs:
             magAndPhaseArr = np.load(ref)
-            magArr = magAndPhaseArr[0].T
-            if self.scale_features:
-                magArr = scale(magArr)
-            magArr = np.asarray([self.pca_freq.transform(magArr).T])
-            batch.append(magArr.swapaxes(0, 1))
+            magArr = magAndPhaseArr[0]
+            if self.scale_features is not None:
+                magArr = self.scale_features.transform(magArr.T).T
+
+            if self.pca_freq is not None:
+                magArr = np.asarray([self.pca_freq.transform(magArr.T).T])
+            else:
+                magArr = [magArr]
+
+            batch.append(np.asarray(magArr).swapaxes(0, 1))
 
         """batch = np.asarray(batch)
         batch_shape = batch.shape
@@ -112,3 +117,11 @@ class TimitGenderLabelResolver(LabelResolver):
     def load_label(self, label_ref):
         return self.TIMIT_LABEL_MALE if label_ref[label_ref.rfind('/DR') + 5:label_ref.rfind(
             '/DR') + 6] is 'M' else self.TIMIT_LABEL_FEMALE
+
+
+class TimitSpeakerLabelResolver(LabelResolver):
+
+    def load_label(self, label_ref):
+        label = label_ref[label_ref.index('/DR') + 5:]
+        return label[:label.index('/')]
+
