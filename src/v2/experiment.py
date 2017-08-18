@@ -168,6 +168,6 @@ class TimitExperiment(AbstractDbnGridSearchExperiment):
         return np.array(fileRefs), None, None
 
     def get_stats_collector(self, results_output_dir):
-        return MultiChannelPlottingDbnTrainingPCAReconstructingStatsCollector(results_output_dir, self.pca_model, 400)
+        return MultiChannelPlottingDbnTrainingPCAReconstructingStatsCollector(results_output_dir, self.pca_model, 200)
         #return MultiChannelPlottingDbnTrainingStatsCollector(results_output_dir, 400)
 

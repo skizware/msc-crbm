@@ -1,5 +1,3 @@
-import dbn
-from experiment import TimitExperiment
 from sklearn.linear_model import SGDClassifier
 from sklearn.utils import shuffle
 from math import ceil, floor
@@ -16,7 +14,7 @@ class SGDClassificationDbnVerifier(object):
         self.class_labels = class_labels
         self.data_loader = data_loader
         self.num_train_epochs = num_train_epochs
-        self.linear_model = SGDClassifier()
+        self.linear_model = SGDClassifier(loss='log')
         self.train_batch_size = len(self.train_set_refs[0]) if train_batch_size is None else train_batch_size
         self.test_batch_size = len(self.test_set_refs[0]) if test_batch_size is None else test_batch_size
 
@@ -91,9 +89,12 @@ class SGDClassificationDbnVerifier(object):
                 subsamples, labels = data_point.get_subsamples_and_labels()
                 features = self.dbn_to_verify.get_features(subsamples, dbn_layers_to_use)
                 predictions = self.linear_model.predict(features)
-                unique, counts = np.unique(predictions, return_counts=True)
-                counted_results = dict(zip(unique, counts))
-                most_predicted = max(counted_results, key=lambda key: counted_results[key])
+                prediction_probs = self.linear_model.predict_log_proba(features)
+                prediction_probs = prediction_probs.sum(axis=0)
+                most_predicted = self.linear_model.classes_[prediction_probs.argmax()]
+                #unique, counts = np.unique(predictions, return_counts=True)
+                #counted_results = dict(zip(unique, counts))
+                #most_predicted = max(counted_results, key=lambda key: counted_results[key])
                 data_point.predicted_label = most_predicted
                 predicted_data_points.append(data_point)
 

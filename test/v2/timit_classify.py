@@ -7,10 +7,10 @@ from verify import TimitSGDClassificationDbnVerifier
 from data import NumpyArrayStftMagnitudeDataLoader, TimitGenderLabelResolver
 from subprocess import Popen, PIPE
 
-DBN_TO_TEST = '/home/dave/code/msc-crbm/test/v2/tmp/1d/300feat-scaled-pcad/layer_0/lr_0.005_st_0.01_slr_0.9/dbn_state.npy'
+DBN_TO_TEST = '/home/dave/code/msc-crbm/test/v2/results/timit/300feat-noscale-norandreconstr/layer_0/lr_0.008_st_0.03_slr_0.8/dbn_state_136286.npy'
 TRAIN_SET_LOCATION = '/home/dave/code/msc-crbm/test/v2/TIMIT_TRAIN_NO_CHUNK/pre-processed'
 TEST_SET_LOCATION = '/home/dave/code/msc-crbm/test/v2/TIMIT_TEST_NO_CHUNK/pre-processed'
-PCA_MODEL_LOCATION = '/home/dave/code/msc-crbm/test/v2/PCA_MODEL/scaled/pca_model.pkl'
+PCA_MODEL_LOCATION = '/home/dave/code/msc-crbm/test/v2/PCA_MODEL/pca_model.pkl'
 SCALER_LOCATION = '/home/dave/code/msc-crbm/test/v2/scaler/scaler_dump.pkl'
 MALE_VAL = 0
 FEMALE_VAL = 1
@@ -28,11 +28,11 @@ all_test_input_refs = proc.stdout.read().split('\n')
 all_test_input_refs = all_test_input_refs[:len(all_test_input_refs) - 1]
 random.shuffle(all_test_input_refs)
 
-data_loader = NumpyArrayStftMagnitudeDataLoader(pca_freq, TimitGenderLabelResolver(), scale_features=myScaler)
+data_loader = NumpyArrayStftMagnitudeDataLoader(pca_freq, TimitGenderLabelResolver(), scale_features=None)
 
 verification_exp = TimitSGDClassificationDbnVerifier(myDbn, [all_train_input_refs, all_train_input_refs],
                                                      [all_test_input_refs, all_test_input_refs], [0, 1], data_loader,
-                                                     time_bins_per_subsample=100, train_batch_size=200,
+                                                     time_bins_per_subsample=50, train_batch_size=500,
                                                      num_train_epochs=5)
 
 all_predicted_data_points = verification_exp.verify_model()

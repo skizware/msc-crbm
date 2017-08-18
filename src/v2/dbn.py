@@ -98,7 +98,7 @@ class BinaryVisibleDbn(AbstractDbn):
     def create_next_layer(self, new_layer_input_shape, new_layer_output_shape, learning_rate, target_sparsity,
                           sparsity_learning_rate, pooling_ratio):
         if len(self.layers) is 0:
-            if pooling_ratio is not 0:
+            if pooling_ratio is not None:
                 return BinaryVisiblePooledLayer(vis_unit_shape=new_layer_input_shape,
                                                hid_unit_shape=new_layer_output_shape,
                                                learning_rate=learning_rate,
@@ -137,7 +137,7 @@ class BinaryVisibleDbnPersistentChainSampling(AbstractDbn):
     def create_next_layer(self, new_layer_input_shape, new_layer_output_shape, learning_rate, target_sparsity,
                           sparsity_learning_rate, pooling_ratio):
         if len(self.layers) is 0:
-            if pooling_ratio is not 0:
+            if pooling_ratio is not None:
                 return BinaryVisiblePooledPersistentSamplerChainLayer(vis_unit_shape=new_layer_input_shape,
                                                hid_unit_shape=new_layer_output_shape,
                                                learning_rate=learning_rate,
@@ -152,7 +152,7 @@ class BinaryVisibleDbnPersistentChainSampling(AbstractDbn):
                                                    sparsity_learning_rate=sparsity_learning_rate)
         else:
             top_layer = self.layers[-1]
-            if pooling_ratio is not 0:
+            if pooling_ratio is not None:
                 next_layer_vis_units = top_layer.get_pool_units()
                 return BinaryVisiblePooledPersistentSamplerChainLayer(vis_unit_shape=next_layer_vis_units.get_shape(),
                                                 hid_unit_shape=new_layer_output_shape,
@@ -176,7 +176,7 @@ class GaussianVisibleDbn(AbstractDbn):
     def create_next_layer(self, new_layer_input_shape, new_layer_output_shape, learning_rate, target_sparsity,
                           sparsity_learning_rate, pooling_ratio):
         if len(self.layers) is 0:
-            if pooling_ratio is not None and pooling_ratio is not 0:
+            if pooling_ratio is not None:
                 return GaussianVisiblePooledLayer(vis_unit_shape=new_layer_input_shape,
                                                hid_unit_shape=new_layer_output_shape,
                                                learning_rate=learning_rate,
