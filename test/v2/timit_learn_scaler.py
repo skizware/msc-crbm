@@ -1,4 +1,3 @@
-from experiment import TimitExperiment
 from subprocess import Popen, PIPE
 import numpy as np
 from sklearn.preprocessing import StandardScaler

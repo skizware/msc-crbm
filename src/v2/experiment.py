@@ -151,7 +151,7 @@ class CaltechExperimentPersistentGibbs(CaltechExperiment):
 
 
 class TimitExperiment(AbstractDbnGridSearchExperiment):
-    def __init__(self, pre_initialized_dbn, result_output_dir, pca_model, scale_features=None):
+    def __init__(self, pre_initialized_dbn, result_output_dir, pca_model=None, scale_features=None):
         super(TimitExperiment, self).__init__(pre_initialized_dbn, result_output_dir)
         self.pca_model = pca_model
         self.scale_features = scale_features

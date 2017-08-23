@@ -17,16 +17,19 @@ class SGDClassificationDbnVerifier(object):
         self.linear_model = SGDClassifier(loss='log')
         self.train_batch_size = len(self.train_set_refs[0]) if train_batch_size is None else train_batch_size
         self.test_batch_size = len(self.test_set_refs[0]) if test_batch_size is None else test_batch_size
+        self.cacheable_dataset = True if train_batch_size is None else False
+        self.cached_data = None
+        self.cached_labels = None
 
     def verify_model(self, dbn_layers_to_use=None):
-        resulting_points = []
+        results_per_epoch = []
         for epoch in xrange(0, self.num_train_epochs):
             print "EPOCH {}".format(epoch)
             self.__train_classifier(dbn_layers_to_use)
-            resulting_points.append(self.__test_classifier(dbn_layers_to_use))
+            results_per_epoch.append(self.__test_classifier(dbn_layers_to_use))
             shuffle(self.train_set_refs[0], self.train_set_refs[1])
 
-        return resulting_points
+        return results_per_epoch
 
     def __train_classifier(self, dbn_layers_to_use):
         # decide on the number of batches we need to run thru for an epoch
@@ -40,11 +43,25 @@ class SGDClassificationDbnVerifier(object):
             self.__train_model_on_batch(dbn_layers_to_use, raw_batch_data, raw_batch_labels)
 
     def __train_model_on_batch(self, dbn_layers_to_use, raw_batch_data, raw_batch_labels):
-        labeled_data_points = self.__labeled_data_points_from_raw_batch(raw_batch_data, raw_batch_labels)
-        batch_data, batch_labels = self.__chunk_batch_data_and_labels(labeled_data_points)
-        shuffle(batch_data, batch_labels)
-        batch_features = self.dbn_to_verify.get_features(np.asarray(batch_data), dbn_layers_to_use)
-        self.linear_model.partial_fit(batch_features, np.asarray(batch_labels), self.class_labels)
+        if self.cacheable_dataset:
+            if self.cached_data is None and self.cached_labels is None:
+                labeled_data_points = self.__labeled_data_points_from_raw_batch(raw_batch_data, raw_batch_labels)
+                batch_data, batch_labels = self.__chunk_batch_data_and_labels(labeled_data_points)
+                batch_data = self.dbn_to_verify.get_features(np.asarray(batch_data), dbn_layers_to_use)
+                shuffle(batch_data, batch_labels)
+                self.cached_data = batch_data
+                self.cached_labels = batch_labels
+            else:
+                batch_data = self.cached_data
+                batch_labels = self.cached_labels
+                shuffle(batch_data, batch_labels)
+        else:
+            labeled_data_points = self.__labeled_data_points_from_raw_batch(raw_batch_data, raw_batch_labels)
+            batch_data, batch_labels = self.__chunk_batch_data_and_labels(labeled_data_points)
+            batch_data = self.dbn_to_verify.get_features(np.asarray(batch_data), dbn_layers_to_use)
+            shuffle(batch_data, batch_labels)
+
+        self.linear_model.partial_fit(batch_data, np.asarray(batch_labels), self.class_labels)
 
     @staticmethod
     def __chunk_batch_data_and_labels(labeled_data_points):
@@ -98,7 +115,18 @@ class SGDClassificationDbnVerifier(object):
                 data_point.predicted_label = most_predicted
                 predicted_data_points.append(data_point)
 
-        return predicted_data_points
+        classified_right = 0
+        classified_wrong = 0
+        for data_point in predicted_data_points:
+            if data_point.class_label == data_point.predicted_label:
+                classified_right += 1
+            else:
+                classified_wrong += 1
+
+        classification_error = (classified_wrong / float(len(predicted_data_points))) * 100
+        print "Classification Error % = {}".format(classification_error)
+
+        return classification_error
 
 
 class TimitSGDClassificationDbnVerifier(SGDClassificationDbnVerifier):
