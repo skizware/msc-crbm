@@ -29,14 +29,14 @@ class DbnTrainer(object):
                 mini_batch = self.data_loader.load_data(mini_batch_refs)
                 if type(mini_batch) is list:
                     mini_batch = np.asarray(mini_batch)
-                try:
-                    stats = self.target_dbn.train_layer_on_batch(mini_batch)
-                except Exception, e:
+                #try:
+                stats = self.target_dbn.train_layer_on_batch(mini_batch)
+                """except Exception, e:
                     print "ERROR!!!"
                     print e
                     print "Caused By:"
                     print mini_batch_refs
-                    print traceback.format_exc()
+                    print traceback.format_exc()"""
 
                 if self.stats_collector is not None:
                     self.stats_collector.collect_stats(stats[0], stats[1], stats[2], stats[3], stats[4],

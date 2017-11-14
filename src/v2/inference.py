@@ -147,8 +147,9 @@ class PooledInferenceGaussianVisible(AbstractPooledInference):
         th_v_given_h_output_pre_sample = T.nnet.conv2d(th_v_given_h_input,
                                                        self.rbm_layer.get_weight_matrix().swapaxes(0, 1),
                                                        border_mode='full') + self.rbm_layer.get_visible_bias()
-        th_v_given_h_output_sampled = self.rbm_layer.get_rng().normal(avg=th_v_given_h_output_pre_sample,
-                                                                      size=th_v_given_h_output_pre_sample.shape)
+        #th_v_given_h_output_sampled = self.rbm_layer.get_rng().normal(avg=th_v_given_h_output_pre_sample,
+        #                                                              size=th_v_given_h_output_pre_sample.shape)
+        th_v_given_h_output_sampled = th_v_given_h_output_pre_sample
 
         op = th.function(
             inputs=[th_v_given_h_input],
@@ -172,8 +173,8 @@ class NonPooledInferenceGaussianVisible(AbstractNonPooledInference):
         th_v_given_h_output_pre_sample = T.nnet.conv2d(th_v_given_h_input,
                                                        self.rbm_layer.get_weight_matrix().swapaxes(0, 1),
                                                        border_mode='full') + self.rbm_layer.get_visible_bias()
-        """th_v_given_h_output_sampled = self.rbm_layer.get_rng().normal(avg=th_v_given_h_output_pre_sample,
-                                                                      size=th_v_given_h_output_pre_sample.shape)"""
+        #th_v_given_h_output_sampled = self.rbm_layer.get_rng().normal(avg=th_v_given_h_output_pre_sample,
+        #                                                             size=th_v_given_h_output_pre_sample.shape)
 
         th_v_given_h_output_sampled = th_v_given_h_output_pre_sample
 

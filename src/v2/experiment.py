@@ -40,9 +40,9 @@ class AbstractDbnGridSearchExperiment(object):
 
     def run_grids(self, grids):
         results = {}
-        for sparsity_learning_rate in grids[KEY_SPARSITY_LEARNING_RATES]:
+        for learning_rate in grids[KEY_LEARNING_RATES]:
             for target_sparsity in grids[KEY_TARGET_SPARSITIES]:
-                for learning_rate in grids[KEY_LEARNING_RATES]:
+                for sparsity_learning_rate in grids[KEY_SPARSITY_LEARNING_RATES]:
                     dbn_copy = copy.deepcopy(self.target_dbn)
                     if not grids[KEY_RE_TRAIN_TOP_LAYER]:
                         dbn_copy.add_layer(grids[KEY_VIS_SHAPE], grids[KEY_HID_SHAPE], learning_rate=learning_rate,
@@ -112,7 +112,7 @@ class MnistExperiment(AbstractDbnGridSearchExperiment):
         return train_set, valid_set, test_set
 
     def get_stats_collector(self, results_output_dir):
-        return MultiChannelPlottingDbnTrainingStatsCollector(results_output_dir, 780)
+        return MultiChannelPlottingDbnTrainingStatsCollector(results_output_dir, 100)
 
 
 class MnistExperimentPersistentGibbs(MnistExperiment):
